@@ -1,0 +1,12 @@
+node_modules/
+logs/
+*.log
+.env
+.env.local
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.sublime-*

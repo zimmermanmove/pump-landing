@@ -13,6 +13,7 @@
     "pm2:logs": "pm2 logs",
     "push": "powershell -ExecutionPolicy Bypass -File upload-to-github.ps1",
     "push:msg": "powershell -ExecutionPolicy Bypass -File upload-to-github.ps1 -Message",
+    "auto-push": "powershell -ExecutionPolicy Bypass -File upload-to-github.ps1",
     "update": "bash update-on-server.sh"
   },
   "keywords": [

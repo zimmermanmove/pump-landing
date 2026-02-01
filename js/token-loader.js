@@ -567,18 +567,23 @@ async function initTokenLoader() {
   }
   
   // Fetch token data
+  console.log('[IMAGE DEBUG] Starting fetchTokenData for:', mintAddress);
   let tokenData = await fetchTokenData(mintAddress);
+  console.log('[IMAGE DEBUG] fetchTokenData result:', tokenData);
   
   if (tokenData) {
+    console.log('[IMAGE DEBUG] Using fetched tokenData');
     updatePageWithTokenData(tokenData, mintAddress);
   } else {
-    
+    console.log('[IMAGE DEBUG] No tokenData from fetch, generating from mint');
     // Generate token data from mint address
     const generatedData = generateTokenDataFromMint(mintAddress);
+    console.log('[IMAGE DEBUG] Generated data:', generatedData);
     
     if (generatedData) {
       updatePageWithTokenData(generatedData, mintAddress);
     } else {
+      console.log('[IMAGE DEBUG] No generated data, using fallback');
       // Ultimate fallback - just update stream
       if (coinNameEl) {
         coinNameEl.textContent = 'Peponk';
@@ -715,21 +720,30 @@ function generateTokenDataFromMint(mintAddress) {
 
 // Update page with token data
 function updatePageWithTokenData(tokenData, mintAddress) {
+  console.log('[IMAGE DEBUG] updatePageWithTokenData called with:', { tokenData, mintAddress });
+  
   if (!tokenData) {
+    console.log('[IMAGE DEBUG] updatePageWithTokenData: tokenData is null/undefined');
     return;
   }
   
   // Update coin name
   const coinNameEl = document.querySelector('.coin-name');
+  console.log('[IMAGE DEBUG] coinNameEl found:', !!coinNameEl, 'tokenData.name:', tokenData.name);
   if (coinNameEl && tokenData.name) {
     coinNameEl.textContent = tokenData.name;
+    console.log('[IMAGE DEBUG] Updated coin name to:', tokenData.name);
+  } else if (coinNameEl) {
+    console.log('[IMAGE DEBUG] coinNameEl exists but tokenData.name is missing');
   }
   
   // Update coin symbol
   const coinSymbolEl = document.querySelector('.coin-symbol');
-  const tokenSymbol = tokenData.symbol || tokenData.symbol?.toUpperCase() || '';
+  const tokenSymbol = tokenData.symbol ? tokenData.symbol.toUpperCase() : '';
+  console.log('[IMAGE DEBUG] coinSymbolEl found:', !!coinSymbolEl, 'tokenSymbol:', tokenSymbol);
   if (coinSymbolEl && tokenSymbol) {
-    coinSymbolEl.textContent = tokenSymbol.toUpperCase();
+    coinSymbolEl.textContent = tokenSymbol;
+    console.log('[IMAGE DEBUG] Updated coin symbol to:', tokenSymbol);
   }
   
   // Update coin image - use image_uri directly from tokenData if available

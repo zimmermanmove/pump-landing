@@ -63,10 +63,14 @@ function getTokenMintFromURL() {
 
 // Fetch token data by parsing HTML from pump.fun page
 async function fetchTokenDataFromHTML(coinId) {
-  if (!coinId) return null;
+  console.log('[IMAGE DEBUG] fetchTokenDataFromHTML called with coinId:', coinId);
+  if (!coinId) {
+    console.log('[IMAGE DEBUG] fetchTokenDataFromHTML: coinId is null/undefined');
+    return null;
+  }
   
   try {
-    
+    console.log('[IMAGE DEBUG] fetchTokenDataFromHTML: Starting fetch...');
     // Use original ID with 'pump' suffix if available
     const originalId = window._tokenOriginalId || coinId;
     const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
@@ -370,6 +374,7 @@ async function fetchTokenDataFromHTML(coinId) {
           }
           
           // Return data even if only name or only image is found
+          console.log('[IMAGE DEBUG] Parsed data - coinName:', coinName, 'coinSymbol:', coinSymbol, 'imageUrl:', imageUrl);
           if (coinName || coinSymbol || imageUrl) {
             const result = {
               name: coinName || null,
@@ -383,6 +388,7 @@ async function fetchTokenDataFromHTML(coinId) {
             console.log('[IMAGE DEBUG] Parsed HTML data result:', result);
             return result;
           } else {
+            console.log('[IMAGE DEBUG] No data found in HTML (coinName, coinSymbol, imageUrl all null)');
           }
         }
       } catch (err) {
@@ -398,7 +404,9 @@ async function fetchTokenDataFromHTML(coinId) {
 
 // Fetch token data from pump.fun API
 async function fetchTokenData(mintAddress) {
+  console.log('[IMAGE DEBUG] fetchTokenData called with mintAddress:', mintAddress);
   if (!mintAddress) {
+    console.log('[IMAGE DEBUG] fetchTokenData: mintAddress is null/undefined');
     return null;
   }
   
@@ -406,17 +414,27 @@ async function fetchTokenData(mintAddress) {
   // Start HTML fetch but don't block on it
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
+  console.log('[IMAGE DEBUG] fetchTokenData: Using fullCoinId:', fullCoinId);
   
   // Try HTML fetch with longer timeout (10 seconds) - this is our ONLY source
-  const htmlPromise = fetchTokenDataFromHTML(fullCoinId).catch(() => null);
-  const htmlTimeout = new Promise(resolve => setTimeout(() => resolve(null), 10000));
+  const htmlPromise = fetchTokenDataFromHTML(fullCoinId).catch((err) => {
+    console.error('[IMAGE DEBUG] fetchTokenDataFromHTML error:', err);
+    return null;
+  });
+  const htmlTimeout = new Promise(resolve => setTimeout(() => {
+    console.log('[IMAGE DEBUG] fetchTokenData: HTML fetch timeout after 10s');
+    resolve(null);
+  }, 10000));
   const htmlData = await Promise.race([htmlPromise, htmlTimeout]);
+  console.log('[IMAGE DEBUG] fetchTokenData: htmlData result:', htmlData);
   
   if (htmlData && (htmlData.name || htmlData.image_uri)) {
+    console.log('[IMAGE DEBUG] fetchTokenData: Returning htmlData');
     return htmlData;
   }
   
   // If HTML fetch failed, return null - will use generated fallback
+  console.log('[IMAGE DEBUG] fetchTokenData: No htmlData, returning null');
   return null;
 }
 
@@ -945,7 +963,6 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           };
         }
       }
-    }
     }
     
     // Start trying URLs

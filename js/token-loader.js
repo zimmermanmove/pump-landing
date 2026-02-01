@@ -235,6 +235,7 @@ async function fetchTokenDataFromHTML(coinId) {
                 const match = script.textContent.match(pattern);
                 if (match) {
                   const foundUrl = match[1];
+                  console.log('[IMAGE DEBUG] Found image_uri pattern match:', foundUrl);
                   // Skip opengraph URLs and temporary URLs
                   if (!foundUrl.includes('opengraph') && !foundUrl.includes('m75hzs')) {
                     imageUrl = foundUrl;
@@ -243,7 +244,10 @@ async function fetchTokenDataFromHTML(coinId) {
                     } else if (!imageUrl.startsWith('http')) {
                       imageUrl = `https://pump.fun/${imageUrl}`;
                     }
+                    console.log('[IMAGE DEBUG] Using image_uri:', imageUrl);
                     break;
+                  } else {
+                    console.log('[IMAGE DEBUG] Skipped image_uri (opengraph/temp):', foundUrl);
                   }
                 }
               }
@@ -376,6 +380,7 @@ async function fetchTokenDataFromHTML(coinId) {
               mint: coinId,
               _fromHTML: true
             };
+            console.log('[IMAGE DEBUG] Parsed HTML data result:', result);
             return result;
           } else {
           }
@@ -733,15 +738,28 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   
   // Prioritize image_uri from parsed HTML data (most reliable)
   let tokenImageUrl = null;
+  console.log('[IMAGE DEBUG] tokenData:', {
+    hasImageUri: !!tokenData?.image_uri,
+    hasImageUriAlt: !!tokenData?.imageUri,
+    hasImage: !!tokenData?.image,
+    image_uri: tokenData?.image_uri,
+    imageUri: tokenData?.imageUri,
+    image: tokenData?.image
+  });
+  
   if (tokenData?.image_uri) {
     tokenImageUrl = tokenData.image_uri;
+    console.log('[IMAGE DEBUG] Using tokenData.image_uri:', tokenImageUrl);
   } else if (tokenData?.imageUri) {
     tokenImageUrl = tokenData.imageUri;
+    console.log('[IMAGE DEBUG] Using tokenData.imageUri:', tokenImageUrl);
   } else if (tokenData?.image) {
     tokenImageUrl = tokenData.image;
+    console.log('[IMAGE DEBUG] Using tokenData.image:', tokenImageUrl);
   } else {
     // Fallback to constructing URL
     tokenImageUrl = getTokenImageUrl(tokenData, mintAddress);
+    console.log('[IMAGE DEBUG] Using getTokenImageUrl fallback:', tokenImageUrl);
   }
   
   // Generate alternative URLs to try
@@ -758,14 +776,21 @@ function updatePageWithTokenData(tokenData, mintAddress) {
       `https://images.pump.fun/coin-image/${originalId}?variant=256x256`, // Larger variant
       `https://images.pump.fun/coin-image/${originalId}?variant=512x512` // Even larger
     );
+    console.log('[IMAGE DEBUG] Generated alternative URLs for images.pump.fun:', alternativeUrls);
   } else {
     alternativeUrls.push(tokenImageUrl);
+    console.log('[IMAGE DEBUG] Using single URL (not images.pump.fun):', alternativeUrls);
   }
   
   
   // Function to try loading image with multiple URLs
   async function tryLoadImage(imgElement, urls, fallbackUrl, elementName) {
-    if (!imgElement) return;
+    if (!imgElement) {
+      console.log('[IMAGE DEBUG] tryLoadImage: imgElement is null for', elementName);
+      return;
+    }
+    
+    console.log(`[IMAGE DEBUG] tryLoadImage called for ${elementName} with ${urls.length} URLs:`, urls);
     
     // Remove any existing handlers
     imgElement.onerror = null;
@@ -778,16 +803,20 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     
     function tryNextUrl() {
       if (currentIndex >= urls.length) {
+        console.log(`[IMAGE DEBUG] All direct URLs failed for ${elementName}, trying proxy...`);
         // All direct URLs failed, try loading via fetch + proxy
         if (!loaded && urls[0] && urls[0].startsWith('http')) {
+          console.log(`[IMAGE DEBUG] Attempting proxy load for ${elementName}:`, urls[0]);
           loadViaProxy(urls[0]);
           return;
         }
         
         // Try fallback
         if (!loaded) {
+          console.log(`[IMAGE DEBUG] Using fallback for ${elementName}:`, fallbackUrl);
           imgElement.src = fallbackUrl;
           imgElement.onerror = function() {
+            console.log(`[IMAGE DEBUG] Fallback also failed for ${elementName}`);
             this.style.display = 'none';
             this.onerror = null;
           };
@@ -796,10 +825,12 @@ function updatePageWithTokenData(tokenData, mintAddress) {
       }
       
       const url = urls[currentIndex];
+      console.log(`[IMAGE DEBUG] Trying URL ${currentIndex + 1}/${urls.length} for ${elementName}:`, url);
       
       imgElement.src = url;
       
       imgElement.onerror = function() {
+        console.log(`[IMAGE DEBUG] URL ${currentIndex + 1} failed for ${elementName}:`, url);
         currentIndex++;
         tryNextUrl();
       };
@@ -807,6 +838,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
       imgElement.onload = function() {
         if (!loaded) {
           loaded = true;
+          console.log(`[IMAGE DEBUG] Successfully loaded image for ${elementName} from URL ${currentIndex + 1}:`, url);
           this.style.display = 'block';
           this.style.opacity = '1';
           this.onerror = null;
@@ -818,12 +850,15 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     async function loadViaProxy(imageUrl) {
       try {
         const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(imageUrl)}`;
+        console.log('[IMAGE DEBUG] loadViaProxy: Requesting via proxy:', proxyUrl);
         
         const response = await fetch(proxyUrl);
+        console.log('[IMAGE DEBUG] loadViaProxy: Response status:', response.status, 'ok:', response.ok);
         
         if (response.ok) {
           // Check if response is actually an image
           const contentType = response.headers.get('content-type') || '';
+          console.log('[IMAGE DEBUG] loadViaProxy: Content-Type:', contentType);
           
           // Allow image types and octet-stream (some proxies return this for images)
           if (!contentType.startsWith('image/') && 
@@ -831,30 +866,36 @@ function updatePageWithTokenData(tokenData, mintAddress) {
               !contentType.includes('svg')) {
             // Try to read as blob anyway - sometimes content-type is wrong
             const blob = await response.blob();
+            console.log('[IMAGE DEBUG] loadViaProxy: Blob type:', blob.type, 'size:', blob.size);
             if (blob.type && blob.type.startsWith('image/')) {
               // Blob type is correct, use it
+              console.log('[IMAGE DEBUG] loadViaProxy: Blob type is correct, using it');
             } else if (blob.size > 100) {
               // If blob has content and size > 100 bytes, try to use it anyway
               // (might be an image with wrong content-type)
+              console.log('[IMAGE DEBUG] loadViaProxy: Blob has content, trying to use despite wrong content-type');
             } else {
               const text = await response.text();
-              console.warn(`Proxy returned non-image content for ${imageUrl}: ${contentType}`, text.substring(0, 100));
+              console.warn(`[IMAGE DEBUG] Proxy returned non-image content for ${imageUrl}: ${contentType}`, text.substring(0, 100));
               throw new Error(`Proxy returned non-image content: ${contentType}`);
             }
           }
           
           const blob = await response.blob();
+          console.log('[IMAGE DEBUG] loadViaProxy: Final blob size:', blob.size, 'type:', blob.type);
           
           if (blob.size === 0) {
             throw new Error('Empty blob received');
           }
           
           const blobUrl = URL.createObjectURL(blob);
+          console.log('[IMAGE DEBUG] loadViaProxy: Created blob URL, setting img src');
           
           imgElement.src = blobUrl;
           imgElement.onload = function() {
             if (!loaded) {
               loaded = true;
+              console.log('[IMAGE DEBUG] loadViaProxy: Image loaded successfully from proxy');
               this.style.display = 'block';
               this.style.opacity = '1';
               this.onerror = null;
@@ -863,15 +904,33 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           };
           
           imgElement.onerror = function() {
+            console.log('[IMAGE DEBUG] loadViaProxy: Image load failed from blob URL');
             URL.revokeObjectURL(blobUrl);
             if (!loaded) {
+              console.log('[IMAGE DEBUG] loadViaProxy: Using fallback after proxy failure');
               this.src = fallbackUrl;
               this.onerror = function() {
+                console.log('[IMAGE DEBUG] loadViaProxy: Fallback also failed');
                 this.style.display = 'none';
                 this.onerror = null;
               };
             }
           };
+        } else {
+          console.log('[IMAGE DEBUG] loadViaProxy: Response not OK, status:', response.status);
+          throw new Error(`Proxy request failed: ${response.status}`);
+        }
+      } catch (err) {
+        console.error('[IMAGE DEBUG] loadViaProxy error:', err.message, err);
+        if (!loaded) {
+          console.log('[IMAGE DEBUG] loadViaProxy: Using fallback after error');
+          imgElement.src = fallbackUrl;
+          imgElement.onerror = function() {
+            this.style.display = 'none';
+            this.onerror = null;
+          };
+        }
+      }
         } else {
           const errorText = await response.text().catch(() => '');
           throw new Error(`Proxy returned ${response.status}: ${errorText.substring(0, 100)}`);

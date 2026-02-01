@@ -11,9 +11,9 @@
     "pm2:stop": "pm2 stop ecosystem.config.js",
     "pm2:restart": "pm2 restart ecosystem.config.js",
     "pm2:logs": "pm2 logs",
-    "deploy": "bash deploy.sh",
-    "commit": "bash auto-commit.sh",
-    "update": "bash update-server.sh"
+    "push": "powershell -ExecutionPolicy Bypass -File upload-to-github.ps1",
+    "push:msg": "powershell -ExecutionPolicy Bypass -File upload-to-github.ps1 -Message",
+    "update": "bash update-on-server.sh"
   },
   "keywords": [
     "pump.fun",

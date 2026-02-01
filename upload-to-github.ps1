@@ -1,32 +1,20 @@
-# Скрипт для загрузки проекта в GitHub
-# Выполните после установки Git
+# Скрипт для автоматического коммита и push в GitHub
 
-Write-Host "🚀 Инициализация Git репозитория..." -ForegroundColor Green
+param(
+    [string]$Message = "Update files"
+)
 
-# Инициализация репозитория
-git init
-
-# Добавление remote
-git remote add origin git@github.com:zimmermanmove/pump-landing.git
-
-# Проверка remote
-Write-Host "📡 Проверка remote..." -ForegroundColor Green
-git remote -v
-
-# Добавление всех файлов
-Write-Host "📦 Добавление файлов..." -ForegroundColor Green
+Write-Host "📦 Добавление изменений..." -ForegroundColor Green
 git add .
 
-# Создание коммита
-Write-Host "💾 Создание коммита..." -ForegroundColor Green
-git commit -m "Initial commit"
+Write-Host "💾 Создание коммита: $Message" -ForegroundColor Green
+git commit -m $Message
 
-# Переименование ветки в main
-git branch -M main
-
-# Push в GitHub
 Write-Host "⬆️  Загрузка в GitHub..." -ForegroundColor Green
-Write-Host "⚠️  Если используете HTTPS вместо SSH, используйте: git remote set-url origin https://github.com/zimmermanmove/pump-landing.git" -ForegroundColor Yellow
-git push -u origin main
+git push origin main
 
-Write-Host "✅ Готово!" -ForegroundColor Green
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "✅ Успешно загружено в GitHub!" -ForegroundColor Green
+} else {
+    Write-Host "❌ Ошибка при загрузке. Проверьте подключение." -ForegroundColor Red
+}

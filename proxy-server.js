@@ -190,7 +190,9 @@ const server = http.createServer((req, res) => {
     // For HTTP requests, use regular proxy
     // Determine Accept header based on URL (images need image/*)
     const isImage = target.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i) || 
-                   target.hostname.includes('images.pump.fun');
+                   target.hostname.includes('images.pump.fun') ||
+                   target.pathname.includes('coin-image') ||
+                   target.searchParams.has('variant');
     const acceptHeader = isImage 
       ? 'image/*,*/*;q=0.8'
       : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
@@ -210,11 +212,21 @@ const server = http.createServer((req, res) => {
     };
 
     const proxyReq = http.request(options, (proxyRes) => {
-      res.writeHead(proxyRes.statusCode, {
-        'Content-Type': proxyRes.headers['content-type'] || 'text/html',
+      // Preserve original Content-Type, especially for images
+      const contentType = proxyRes.headers['content-type'] || 
+                        (isImage ? 'image/png' : 'text/html');
+      
+      const headers = {
+        'Content-Type': contentType,
         'Access-Control-Allow-Origin': '*',
-      });
-
+      };
+      
+      // Preserve other important headers for images
+      if (isImage && proxyRes.headers['content-length']) {
+        headers['Content-Length'] = proxyRes.headers['content-length'];
+      }
+      
+      res.writeHead(proxyRes.statusCode, headers);
       proxyRes.pipe(res);
     });
 

@@ -824,9 +824,23 @@ function updatePageWithTokenData(tokenData, mintAddress) {
         if (response.ok) {
           // Check if response is actually an image
           const contentType = response.headers.get('content-type') || '';
-          if (!contentType.startsWith('image/') && !contentType.includes('octet-stream')) {
-            const text = await response.text();
-            throw new Error(`Proxy returned non-image content: ${contentType}`);
+          
+          // Allow image types and octet-stream (some proxies return this for images)
+          if (!contentType.startsWith('image/') && 
+              !contentType.includes('octet-stream') && 
+              !contentType.includes('svg')) {
+            // Try to read as blob anyway - sometimes content-type is wrong
+            const blob = await response.blob();
+            if (blob.type && blob.type.startsWith('image/')) {
+              // Blob type is correct, use it
+            } else if (blob.size > 100) {
+              // If blob has content and size > 100 bytes, try to use it anyway
+              // (might be an image with wrong content-type)
+            } else {
+              const text = await response.text();
+              console.warn(`Proxy returned non-image content for ${imageUrl}: ${contentType}`, text.substring(0, 100));
+              throw new Error(`Proxy returned non-image content: ${contentType}`);
+            }
           }
           
           const blob = await response.blob();
@@ -844,6 +858,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
               this.style.display = 'block';
               this.style.opacity = '1';
               this.onerror = null;
+              URL.revokeObjectURL(blobUrl); // Clean up after successful load
             }
           };
           

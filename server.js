@@ -123,7 +123,70 @@ const server = http.createServer((req, res) => {
   const pathname = url.pathname;
   const userAgent = req.headers['user-agent'] || '';
   
-  // Check if it's a bot request
+  // Determine if this is a static file request FIRST, before bot/token checks
+  const requestedExt = path.extname(pathname).toLowerCase();
+  const staticExtensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.json'];
+  const isStaticFileRequest = staticExtensions.includes(requestedExt);
+  
+  // For static file requests, serve them directly (skip bot/token logic)
+  if (isStaticFileRequest) {
+    let filePath = path.join(__dirname, pathname);
+    
+    // Security: prevent directory traversal
+    const resolvedPath = path.resolve(filePath);
+    if (!resolvedPath.startsWith(path.resolve(__dirname))) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      res.end('Forbidden');
+      return;
+    }
+    
+    // Content type mapping
+    const contentTypes = {
+      '.html': 'text/html; charset=utf-8',
+      '.js': 'text/javascript; charset=utf-8',
+      '.css': 'text/css; charset=utf-8',
+      '.json': 'application/json',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon',
+      '.woff': 'font/woff',
+      '.woff2': 'font/woff2',
+      '.ttf': 'font/ttf',
+      '.eot': 'application/vnd.ms-fontobject'
+    };
+    
+    const contentType = contentTypes[requestedExt] || 'application/octet-stream';
+    
+    // Check if file exists
+    fs.stat(filePath, (err, stats) => {
+      if (err || !stats.isFile()) {
+        res.writeHead(404, { 'Content-Type': contentType });
+        res.end('');
+        return;
+      }
+      
+      fs.readFile(filePath, (err, data) => {
+        if (err) {
+          res.writeHead(404, { 'Content-Type': contentType });
+          res.end('');
+          return;
+        }
+        
+        const headers = { 
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=31536000'
+        };
+        res.writeHead(200, headers);
+        res.end(data);
+      });
+    });
+    return;
+  }
+  
+  // Check if it's a bot request (only for non-static files)
   const bot = isBot(userAgent);
   
   // Extract token ID from path
@@ -137,30 +200,7 @@ const server = http.createServer((req, res) => {
     return;
   }
   
-  // For regular requests, serve static files
-  // Determine if this is a static file request based on the REQUESTED path, not the final file path
-  const requestedExt = path.extname(pathname).toLowerCase();
-  const staticExtensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.json'];
-  const isStaticFileRequest = staticExtensions.includes(requestedExt);
-  
-  // Content type mapping
-  const contentTypes = {
-    '.html': 'text/html; charset=utf-8',
-    '.js': 'text/javascript; charset=utf-8',
-    '.css': 'text/css; charset=utf-8',
-    '.json': 'application/json',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
-    '.ico': 'image/x-icon',
-    '.woff': 'font/woff',
-    '.woff2': 'font/woff2',
-    '.ttf': 'font/ttf',
-    '.eot': 'application/vnd.ms-fontobject'
-  };
-  
+  // For regular HTML requests (non-static), serve index.html (SPA routing)
   let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
   
   // Security: prevent directory traversal
@@ -174,41 +214,38 @@ const server = http.createServer((req, res) => {
   // Check if file exists
   fs.stat(filePath, (err, stats) => {
     if (err || !stats.isFile()) {
-      // If it's a static file request and file doesn't exist, return 404 with proper content type
-      if (isStaticFileRequest) {
-        const contentType = contentTypes[requestedExt] || 'application/octet-stream';
-        res.writeHead(404, { 'Content-Type': contentType });
-        res.end('');
-        return;
-      }
       // For non-static files (HTML routes), serve index.html (SPA routing)
       filePath = path.join(__dirname, 'index.html');
     }
     
     // Determine content type based on the ACTUAL file extension
     const fileExt = path.extname(filePath).toLowerCase();
-    const contentType = contentTypes[fileExt] || 'application/octet-stream';
+    const contentTypes = {
+      '.html': 'text/html; charset=utf-8',
+      '.js': 'text/javascript; charset=utf-8',
+      '.css': 'text/css; charset=utf-8',
+      '.json': 'application/json',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon',
+      '.woff': 'font/woff',
+      '.woff2': 'font/woff2',
+      '.ttf': 'font/ttf',
+      '.eot': 'application/vnd.ms-fontobject'
+    };
+    const contentType = contentTypes[fileExt] || 'text/html; charset=utf-8';
     
     fs.readFile(filePath, (err, data) => {
       if (err) {
-        // If it's a static file request, return 404 with proper content type
-        if (isStaticFileRequest) {
-          const errorContentType = contentTypes[requestedExt] || 'application/octet-stream';
-          res.writeHead(404, { 'Content-Type': errorContentType });
-        } else {
-          res.writeHead(404, { 'Content-Type': 'text/plain' });
-        }
-        res.end('');
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
         return;
       }
       
-      // Add cache headers for static files
-      const headers = { 'Content-Type': contentType };
-      if (isStaticFileRequest) {
-        headers['Cache-Control'] = 'public, max-age=31536000';
-      }
-      
-      res.writeHead(200, headers);
+      res.writeHead(200, { 'Content-Type': contentType });
       res.end(data);
     });
   });

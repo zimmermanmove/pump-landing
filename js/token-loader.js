@@ -857,6 +857,15 @@ function updatePageWithTokenData(tokenData, mintAddress) {
       }
       
       const url = urls[currentIndex];
+      
+      // If URL is from images.pump.fun, use proxy immediately (CORS issue)
+      if (url.includes('images.pump.fun')) {
+        console.log(`[IMAGE DEBUG] Skipping direct load for images.pump.fun (CORS), using proxy for ${elementName}:`, url);
+        // Use proxy for this URL
+        loadViaProxy(url);
+        return;
+      }
+      
       console.log(`[IMAGE DEBUG] Trying URL ${currentIndex + 1}/${urls.length} for ${elementName}:`, url);
       
       imgElement.src = url;
@@ -881,7 +890,9 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     // Function to load image via proxy using fetch + blob
     async function loadViaProxy(imageUrl) {
       try {
-        const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(imageUrl)}`;
+        // Use server's proxy endpoint (not localhost, as this runs in browser)
+        const proxyHost = window.location.origin.replace(':3000', ':3001');
+        const proxyUrl = `${proxyHost}/?url=${encodeURIComponent(imageUrl)}`;
         console.log('[IMAGE DEBUG] loadViaProxy: Requesting via proxy:', proxyUrl);
         
         const response = await fetch(proxyUrl);

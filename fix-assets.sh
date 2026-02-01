@@ -18,7 +18,7 @@ fi
 # Создаем простые SVG заглушки
 echo "Создание заглушек для изображений..."
 
-# coin.png - используем SVG заглушку
+# coin.png - создаем SVG и копируем как PNG (браузеры поддерживают SVG с расширением .png если указан правильный content-type)
 cat > assets/coin.svg << 'EOF'
 <svg width="86" height="86" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -32,6 +32,9 @@ cat > assets/coin.svg << 'EOF'
 </svg>
 EOF
 
+# Копируем SVG как PNG (сервер будет отдавать с правильным content-type)
+cp assets/coin.svg assets/coin.png
+
 # sol.png
 cat > assets/sol.svg << 'EOF'
 <svg width="32" height="32" xmlns="http://www.w3.org/2000/svg">
@@ -39,6 +42,9 @@ cat > assets/sol.svg << 'EOF'
   <text x="16" y="21" font-family="Arial, sans-serif" font-size="12" fill="white" text-anchor="middle" font-weight="bold">SOL</text>
 </svg>
 EOF
+
+# Копируем SVG как PNG
+cp assets/sol.svg assets/sol.png
 
 # Создаем заглушки для аватаров
 for avatar in user lucythecat dr.devv creator; do

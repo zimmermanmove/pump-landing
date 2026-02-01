@@ -945,19 +945,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           };
         }
       }
-        } else {
-          const errorText = await response.text().catch(() => '');
-          throw new Error(`Proxy returned ${response.status}: ${errorText.substring(0, 100)}`);
-        }
-      } catch (error) {
-        if (!loaded) {
-          imgElement.src = fallbackUrl;
-          imgElement.onerror = function() {
-            this.style.display = 'none';
-            this.onerror = null;
-          };
-        }
-      }
+    }
     }
     
     // Start trying URLs

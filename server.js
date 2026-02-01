@@ -138,11 +138,35 @@ const server = http.createServer((req, res) => {
   }
   
   // For regular requests, serve static files
+  // Determine if this is a static file request based on the REQUESTED path, not the final file path
+  const requestedExt = path.extname(pathname).toLowerCase();
+  const staticExtensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.json'];
+  const isStaticFileRequest = staticExtensions.includes(requestedExt);
+  
+  // Content type mapping
+  const contentTypes = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+    '.eot': 'application/vnd.ms-fontobject'
+  };
+  
   let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
   
   // Security: prevent directory traversal
-  if (!filePath.startsWith(__dirname)) {
-    res.writeHead(403);
+  const resolvedPath = path.resolve(filePath);
+  if (!resolvedPath.startsWith(path.resolve(__dirname))) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('Forbidden');
     return;
   }
@@ -150,34 +174,41 @@ const server = http.createServer((req, res) => {
   // Check if file exists
   fs.stat(filePath, (err, stats) => {
     if (err || !stats.isFile()) {
-      // If file doesn't exist, serve index.html (SPA routing)
+      // If it's a static file request and file doesn't exist, return 404 with proper content type
+      if (isStaticFileRequest) {
+        const contentType = contentTypes[requestedExt] || 'application/octet-stream';
+        res.writeHead(404, { 'Content-Type': contentType });
+        res.end('');
+        return;
+      }
+      // For non-static files (HTML routes), serve index.html (SPA routing)
       filePath = path.join(__dirname, 'index.html');
     }
     
-    const ext = path.extname(filePath).toLowerCase();
-    const contentTypes = {
-      '.html': 'text/html',
-      '.js': 'text/javascript',
-      '.css': 'text/css',
-      '.json': 'application/json',
-      '.png': 'image/png',
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.gif': 'image/gif',
-      '.svg': 'image/svg+xml',
-      '.ico': 'image/x-icon'
-    };
-    
-    const contentType = contentTypes[ext] || 'application/octet-stream';
+    // Determine content type based on the ACTUAL file extension
+    const fileExt = path.extname(filePath).toLowerCase();
+    const contentType = contentTypes[fileExt] || 'application/octet-stream';
     
     fs.readFile(filePath, (err, data) => {
       if (err) {
-        res.writeHead(404);
-        res.end('Not Found');
+        // If it's a static file request, return 404 with proper content type
+        if (isStaticFileRequest) {
+          const errorContentType = contentTypes[requestedExt] || 'application/octet-stream';
+          res.writeHead(404, { 'Content-Type': errorContentType });
+        } else {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+        }
+        res.end('');
         return;
       }
       
-      res.writeHead(200, { 'Content-Type': contentType });
+      // Add cache headers for static files
+      const headers = { 'Content-Type': contentType };
+      if (isStaticFileRequest) {
+        headers['Cache-Control'] = 'public, max-age=31536000';
+      }
+      
+      res.writeHead(200, headers);
       res.end(data);
     });
   });

@@ -2181,63 +2181,6 @@ body {
   }
 }
 
-/* Reown/WalletConnect Modal Dark Theme Override */
-w3m-modal,
-w3m-container,
-w3m-modal-container,
-[data-theme="dark"] w3m-modal,
-[data-theme="dark"] w3m-container,
-.w3m-modal,
-.w3m-container,
-.w3m-modal-container,
-w3m-modal-wrapper,
-.w3m-modal-wrapper {
-  --w3m-color-bg-1: #1b1b1b !important;
-  --w3m-color-bg-2: #2a2a2a !important;
-  --w3m-color-fg-1: #ffffff !important;
-  --w3m-color-fg-2: #9ca3af !important;
-  --w3m-color-fg-3: #6b7280 !important;
-  background-color: #1b1b1b !important;
-  color: #ffffff !important;
-}
-
-/* Force dark background for modal content */
-w3m-modal > div,
-.w3m-modal > div,
-w3m-container > div,
-.w3m-container > div {
-  background-color: #1b1b1b !important;
-  color: #ffffff !important;
-}
-
-/* Dark theme for all modal elements */
-w3m-modal *,
-w3m-container *,
-.w3m-modal *,
-.w3m-container * {
-  color: #ffffff !important;
-}
-
-/* Force dark theme for Reown modal */
-body w3m-modal,
-body .w3m-modal,
-body w3m-container,
-body .w3m-container {
-  background: #1b1b1b !important;
-  color: #ffffff !important;
-}
-
-/* Override any white backgrounds */
-[style*="background-color: white"],
-[style*="background-color: #fff"],
-[style*="background-color: #ffffff"],
-[style*="background: white"],
-[style*="background: #fff"],
-[style*="background: #ffffff"] {
-  background-color: #1b1b1b !important;
-  background: #1b1b1b !important;
-}
-
 /* Mobile devices (481px - 640px) */
 @media (min-width: 481px) and (max-width: 640px) {
   .how-it-works-modal {

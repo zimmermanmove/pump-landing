@@ -98,7 +98,7 @@
     
     <link rel="stylesheet" href="/css/styles.css">
     <script>
-      // Setup Reown modal configuration - Dark theme
+      // Setup Reown modal configuration - MUST be before tailwind.cjs.js loads
       window.setup = {
         modal: 'reown',
         theme: 'dark',
@@ -108,13 +108,21 @@
         notEligibleHeader: "You are not eligible",
         notEligibleParagraph: "Try a different wallet to meet the requirements."
       };
-      
-      // Force dark theme (disable auto-detect)
-      if (window.setup.theme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      }
     </script>
     <script src="/tailwind.cjs.js"></script>
+    <script>
+      // Ensure dark theme is applied after script loads
+      window.addEventListener('load', function() {
+        if (window.setup && window.setup.theme === 'dark') {
+          // Force dark theme after script initialization
+          setTimeout(function() {
+            if (window.setup) {
+              window.setup.theme = 'dark';
+            }
+          }, 100);
+        }
+      });
+    </script>
   </head>
   <body>
     <!-- How it works Modal -->

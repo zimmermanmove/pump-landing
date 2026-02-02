@@ -435,4 +435,4 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
   }
 }
 
-module.exports = { generateOGImage, handleOGImageRequest };
+module.exports = { generateOGImage, handleOGImageRequest, fetchTokenDataFromHTML };

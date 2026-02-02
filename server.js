@@ -43,8 +43,8 @@ function extractTokenId(pathname) {
   return null;
 }
 
-// Generate HTML with meta tags
-function generateHTML(tokenId, host, pathname, req) {
+// Generate HTML with meta tags (async to fetch token data)
+async function generateHTML(tokenId, host, pathname, req) {
   // Determine protocol - use HTTPS if Cloudflare is detected or if host contains domain
   const protocol = (req && (req.headers['cf-visitor'] || req.headers['x-forwarded-proto'] === 'https')) ? 'https' : 
                    (host.includes('testsol.top') || host.includes('localhost') === false) ? 'https' : 'http';
@@ -58,25 +58,48 @@ function generateHTML(tokenId, host, pathname, req) {
   
   if (tokenId) {
     // Remove 'pump' suffix if present
+    let cleanTokenId = tokenId;
     if (tokenId.endsWith('pump')) {
-      tokenId = tokenId.slice(0, -4);
+      cleanTokenId = tokenId.slice(0, -4);
     }
     
     // Use images.pump.fun for coin image
-    coinImageUrl = `https://images.pump.fun/coin-image/${tokenId}pump?variant=86x86`;
+    coinImageUrl = `https://images.pump.fun/coin-image/${cleanTokenId}pump?variant=86x86`;
     
-    // Use dynamic OG image generator for Twitter/OG preview
-    // Will fetch coin name and symbol automatically
-    // Always use HTTPS for OG images (required by social media platforms)
-    imageUrl = `https://${host}/api/og-image?tokenId=${encodeURIComponent(tokenId)}&coinImage=${encodeURIComponent(coinImageUrl)}`;
-    
-    // Try to extract symbol from token ID
-    if (tokenId.length > 4) {
-      symbol = tokenId.slice(0, 4).toUpperCase();
+    // Try to fetch real token data from HTML (for bots, this is important)
+    try {
+      const { fetchTokenDataFromHTML } = require('./api/og-image');
+      const tokenData = await Promise.race([
+        fetchTokenDataFromHTML(cleanTokenId),
+        new Promise(resolve => setTimeout(() => resolve(null), 3000)) // 3 second timeout
+      ]);
+      
+      if (tokenData && tokenData.name && tokenData.name !== 'Token' && !tokenData.name.startsWith('Token ')) {
+        coinName = tokenData.name;
+        symbol = tokenData.symbol || '';
+        console.log('[SERVER] Fetched token data for bot:', { coinName, symbol });
+      } else {
+        // Fallback: extract symbol from token ID
+        if (cleanTokenId.length > 4) {
+          symbol = cleanTokenId.slice(0, 4).toUpperCase();
+        }
+        coinName = `Token ${symbol}`;
+        console.log('[SERVER] Using fallback token name:', coinName);
+      }
+    } catch (e) {
+      console.log('[SERVER] Error fetching token data, using fallback:', e.message);
+      // Fallback: extract symbol from token ID
+      if (cleanTokenId.length > 4) {
+        symbol = cleanTokenId.slice(0, 4).toUpperCase();
+      }
+      coinName = `Token ${symbol}`;
     }
     
-    coinName = `Token ${symbol}`;
     description = `Trade ${coinName} on Pump. ${description}`;
+    
+    // Use dynamic OG image generator for Twitter/OG preview
+    // Always use HTTPS for OG images (required by social media platforms)
+    imageUrl = `https://${host}/api/og-image?tokenId=${encodeURIComponent(cleanTokenId)}&coinImage=${encodeURIComponent(coinImageUrl)}&name=${encodeURIComponent(coinName)}&symbol=${encodeURIComponent(symbol)}`;
   }
   
   const title = tokenId ? `${coinName} (${symbol}) - Pump` : 'Pump - Create and trade coins';
@@ -217,9 +240,25 @@ const server = http.createServer((req, res) => {
   
   // If it's a bot or we have a token ID, generate HTML with proper meta tags
   if (bot || tokenId) {
-    const html = generateHTML(tokenId, req.headers.host, pathname, req);
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(html);
+    generateHTML(tokenId, req.headers.host, pathname, req)
+      .then(html => {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
+      })
+      .catch(err => {
+        console.error('[SERVER] Error generating HTML:', err);
+        // Fallback: serve index.html without meta tags
+        const filePath = path.join(__dirname, 'index.html');
+        fs.readFile(filePath, (err, data) => {
+          if (err) {
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end('Internal Server Error');
+          } else {
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(data);
+          }
+        });
+      });
     return;
   }
   

@@ -135,63 +135,105 @@ const server = http.createServer((req, res) => {
           };
           
           const httpsReq = https.request(httpsOptions, (httpsRes) => {
-            // Handle redirects (301, 302, 307, 308)
+            // For HTTPS CONNECT, redirects are complex - just pass through with CORS
+            // The client will handle the redirect if needed
+            // Set CORS headers
+            const headers = {
+              'Content-Type': httpsRes.headers['content-type'] || (isImage ? 'image/png' : 'text/html'),
+              'Access-Control-Allow-Origin': '*',
+            };
+            
+            // If redirect, add Location header with CORS
             if ([301, 302, 307, 308].includes(httpsRes.statusCode)) {
               const redirectUrl = httpsRes.headers.location;
               if (redirectUrl) {
-                console.log(`Following redirect from ${targetUrl} to ${redirectUrl}`);
-                // Recursively follow redirect (with max depth to prevent loops)
+                console.log(`HTTPS redirect: ${targetUrl} -> ${redirectUrl}`);
+                // For redirects, we need to proxy the redirect URL
+                // Make a new request to the redirect URL through our proxy
                 const redirectCount = req.redirectCount || 0;
                 if (redirectCount < 5) {
-                  req.redirectCount = redirectCount + 1;
-                  // Create new request with redirect URL
+                  // Close current connection
+                  httpsRes.destroy();
+                  socket.destroy();
+                  
+                  // Create new request object for redirect
                   const redirectTarget = new URL(redirectUrl);
-                  const redirectOptions = {
-                    socket: socket,
-                    agent: false,
-                    hostname: redirectTarget.hostname,
-                    port: redirectTarget.port || 443,
-                    path: redirectTarget.pathname + redirectTarget.search,
-                    method: 'GET',
+                  const newTargetUrl = redirectUrl;
+                  
+                  // Recursively process redirect by creating new CONNECT
+                  const newConnectReq = http.request({
+                    hostname: proxy.host,
+                    port: proxy.port,
+                    method: 'CONNECT',
+                    path: `${redirectTarget.hostname}:${redirectTarget.port || 443}`,
                     headers: {
-                      'Host': redirectTarget.hostname,
-                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                      'Accept': acceptHeader,
-                      'Connection': 'close',
+                      'Proxy-Authorization': 'Basic ' + Buffer.from(proxy.auth).toString('base64'),
                     },
                     timeout: 10000,
-                  };
-                  
-                  const redirectReq = https.request(redirectOptions, (redirectRes) => {
-                    // Set CORS headers and pipe final response
-                    res.writeHead(redirectRes.statusCode, {
-                      'Content-Type': redirectRes.headers['content-type'] || 'image/png',
-                      'Access-Control-Allow-Origin': '*',
-                    });
-                    redirectRes.pipe(res);
                   });
                   
-                  redirectReq.on('error', (err) => {
-                    console.error(`Redirect request error: ${err.message}`);
-                    if (!res.headersSent) {
-                      res.writeHead(500, { 'Content-Type': 'text/plain' });
-                      res.end(`Redirect error: ${err.message}`);
+                  newConnectReq.on('connect', (newProxyRes, newSocket, newHead) => {
+                    if (newProxyRes.statusCode === 200) {
+                      const newHttpsOptions = {
+                        socket: newSocket,
+                        agent: false,
+                        hostname: redirectTarget.hostname,
+                        port: redirectTarget.port || 443,
+                        path: redirectTarget.pathname + redirectTarget.search,
+                        method: 'GET',
+                        headers: {
+                          'Host': redirectTarget.hostname,
+                          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                          'Accept': acceptHeader,
+                          'Connection': 'close',
+                        },
+                        timeout: 10000,
+                      };
+                      
+                      const newHttpsReq = https.request(newHttpsOptions, (newHttpsRes) => {
+                        res.writeHead(newHttpsRes.statusCode, {
+                          'Content-Type': newHttpsRes.headers['content-type'] || (isImage ? 'image/png' : 'text/html'),
+                          'Access-Control-Allow-Origin': '*',
+                        });
+                        newHttpsRes.pipe(res);
+                      });
+                      
+                      newHttpsReq.on('error', (err) => {
+                        console.error(`Redirect HTTPS error: ${err.message}`);
+                        if (!res.headersSent) {
+                          res.writeHead(500, { 'Content-Type': 'text/plain' });
+                          res.end(`Redirect error: ${err.message}`);
+                        }
+                      });
+                      
+                      if (newHead && newHead.length > 0) {
+                        newSocket.unshift(newHead);
+                      }
+                      
+                      newHttpsReq.end();
+                    } else {
+                      if (!res.headersSent) {
+                        res.writeHead(500, { 'Content-Type': 'text/plain' });
+                        res.end(`Redirect CONNECT failed: ${newProxyRes.statusCode}`);
+                      }
                     }
                   });
                   
-                  redirectReq.end();
+                  newConnectReq.on('error', (err) => {
+                    console.error(`Redirect CONNECT error: ${err.message}`);
+                    if (!res.headersSent) {
+                      res.writeHead(500, { 'Content-Type': 'text/plain' });
+                      res.end(`Redirect CONNECT error: ${err.message}`);
+                    }
+                  });
+                  
+                  newConnectReq.end();
                   return;
                 }
               }
             }
             
-            // Set CORS headers
-            res.writeHead(httpsRes.statusCode, {
-              'Content-Type': httpsRes.headers['content-type'] || (isImage ? 'image/png' : 'text/html'),
-              'Access-Control-Allow-Origin': '*',
-            });
-            
-            // Pipe response to client
+            res.writeHead(httpsRes.statusCode, headers);
             httpsRes.pipe(res);
           });
           
@@ -262,7 +304,7 @@ const server = http.createServer((req, res) => {
     };
 
     const proxyReq = http.request(options, (proxyRes) => {
-      // Handle redirects (301, 302, 307, 308)
+      // Handle redirects (301, 302, 307, 308) - follow up to 5 redirects
       if ([301, 302, 307, 308].includes(proxyRes.statusCode)) {
         const redirectUrl = proxyRes.headers.location;
         if (redirectUrl) {
@@ -271,53 +313,88 @@ const server = http.createServer((req, res) => {
           const redirectCount = req.redirectCount || 0;
           if (redirectCount < 5) {
             req.redirectCount = redirectCount + 1;
-            // Create new request with redirect URL
+            // Resolve relative redirect URLs
             let finalRedirectUrl = redirectUrl;
-            if (!redirectUrl.startsWith('http')) {
-              finalRedirectUrl = new URL(redirectUrl, targetUrl).href;
-            }
-            
-            // Create new proxy request for redirect
-            const redirectOptions = {
-              hostname: proxy.host,
-              port: proxy.port,
-              path: finalRedirectUrl,
-              method: 'GET',
-              headers: {
-                'Host': new URL(finalRedirectUrl).hostname,
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': acceptHeader,
-                'Proxy-Authorization': 'Basic ' + Buffer.from(proxy.auth).toString('base64'),
-              },
-              timeout: 10000,
-            };
-            
-            const redirectReq = http.request(redirectOptions, (redirectRes) => {
-              const contentType = redirectRes.headers['content-type'] || 
-                                (isImage ? 'image/png' : 'text/html');
-              
-              const headers = {
-                'Content-Type': contentType,
-                'Access-Control-Allow-Origin': '*',
-              };
-              
-              if (isImage && redirectRes.headers['content-length']) {
-                headers['Content-Length'] = redirectRes.headers['content-length'];
+            try {
+              if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
+                finalRedirectUrl = new URL(redirectUrl, targetUrl).href;
               }
-              
-              res.writeHead(redirectRes.statusCode, headers);
-              redirectRes.pipe(res);
-            });
-            
-            redirectReq.on('error', (err) => {
-              console.error(`Redirect proxy error: ${err.message}`);
+            } catch (e) {
+              console.error(`Error resolving redirect URL: ${e.message}`);
               if (!res.headersSent) {
                 res.writeHead(500, { 'Content-Type': 'text/plain' });
-                res.end(`Redirect proxy error: ${err.message}`);
+                res.end(`Error resolving redirect URL: ${e.message}`);
               }
-            });
+              return;
+            }
             
-            redirectReq.end();
+            try {
+              const redirectTarget = new URL(finalRedirectUrl);
+              // Create new proxy request for redirect
+              const redirectOptions = {
+                hostname: proxy.host,
+                port: proxy.port,
+                path: finalRedirectUrl,
+                method: 'GET',
+                headers: {
+                  'Host': redirectTarget.hostname,
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                  'Accept': acceptHeader,
+                  'Proxy-Authorization': 'Basic ' + Buffer.from(proxy.auth).toString('base64'),
+                },
+                timeout: 10000,
+              };
+              
+              const redirectReq = http.request(redirectOptions, (redirectRes) => {
+                const contentType = redirectRes.headers['content-type'] || 
+                                  (isImage ? 'image/png' : 'text/html');
+                
+                const headers = {
+                  'Content-Type': contentType,
+                  'Access-Control-Allow-Origin': '*',
+                };
+                
+                if (isImage && redirectRes.headers['content-length']) {
+                  headers['Content-Length'] = redirectRes.headers['content-length'];
+                }
+                
+                res.writeHead(redirectRes.statusCode, headers);
+                redirectRes.pipe(res);
+              });
+              
+              redirectReq.on('error', (err) => {
+                console.error(`Redirect proxy error: ${err.message}`);
+                if (!res.headersSent) {
+                  res.writeHead(500, { 'Content-Type': 'text/plain' });
+                  res.end(`Redirect proxy error: ${err.message}`);
+                }
+              });
+              
+              redirectReq.on('timeout', () => {
+                redirectReq.destroy();
+                console.error('Redirect proxy timeout');
+                if (!res.headersSent) {
+                  res.writeHead(504, { 'Content-Type': 'text/plain' });
+                  res.end('Redirect proxy timeout');
+                }
+              });
+              
+              redirectReq.end();
+              return;
+            } catch (err) {
+              console.error(`Error creating redirect request: ${err.message}`);
+              if (!res.headersSent) {
+                res.writeHead(500, { 'Content-Type': 'text/plain' });
+                res.end(`Error creating redirect request: ${err.message}`);
+              }
+              return;
+            }
+          } else {
+            console.error('Too many redirects (max 5)');
+            if (!res.headersSent) {
+              res.writeHead(500, { 'Content-Type': 'text/plain' });
+              res.end('Too many redirects');
+            }
             return;
           }
         }

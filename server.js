@@ -156,6 +156,45 @@ const server = http.createServer((req, res) => {
   const userAgent = req.headers['user-agent'] || '';
   
 
+  // Proxy route for images and external resources - check BEFORE static files
+  if (pathname === '/proxy') {
+    const urlParams = new URL(req.url, `http://${req.headers.host}`);
+    const targetUrl = urlParams.searchParams.get('url');
+    
+    if (!targetUrl) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Missing url parameter');
+      return;
+    }
+    
+    // Proxy the request through proxy-server
+    try {
+      const proxyPort = process.env.PROXY_PORT || 3001;
+      const proxyUrl = `http://localhost:${proxyPort}/proxy?url=${encodeURIComponent(targetUrl)}`;
+      const proxyReq = http.get(proxyUrl, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, {
+          'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=3600'
+        });
+        proxyRes.pipe(res);
+      });
+      
+      proxyReq.on('error', (err) => {
+        console.error('[SERVER] Proxy error:', err.message);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'text/plain' });
+          res.end('Proxy error');
+        }
+      });
+    } catch (err) {
+      console.error('[SERVER] Proxy setup error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Proxy setup error');
+    }
+    return;
+  }
+
   const requestedExt = path.extname(pathname).toLowerCase();
   const staticExtensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.json'];
   const isStaticFileRequest = staticExtensions.includes(requestedExt);
@@ -215,46 +254,6 @@ const server = http.createServer((req, res) => {
         res.end(data);
       });
     });
-    return;
-  }
-  
-  
-  // Proxy route for images and external resources
-  if (pathname === '/proxy') {
-    const urlParams = new URL(req.url, `http://${req.headers.host}`);
-    const targetUrl = urlParams.searchParams.get('url');
-    
-    if (!targetUrl) {
-      res.writeHead(400, { 'Content-Type': 'text/plain' });
-      res.end('Missing url parameter');
-      return;
-    }
-    
-    // Proxy the request through proxy-server
-    try {
-      const proxyPort = process.env.PROXY_PORT || 3001;
-      const proxyUrl = `http://localhost:${proxyPort}/proxy?url=${encodeURIComponent(targetUrl)}`;
-      const proxyReq = http.get(proxyUrl, (proxyRes) => {
-        res.writeHead(proxyRes.statusCode, {
-          'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream',
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=3600'
-        });
-        proxyRes.pipe(res);
-      });
-      
-      proxyReq.on('error', (err) => {
-        console.error('[SERVER] Proxy error:', err.message);
-        if (!res.headersSent) {
-          res.writeHead(500, { 'Content-Type': 'text/plain' });
-          res.end('Proxy error');
-        }
-      });
-    } catch (err) {
-      console.error('[SERVER] Proxy setup error:', err.message);
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end('Proxy setup error');
-    }
     return;
   }
 

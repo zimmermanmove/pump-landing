@@ -60,7 +60,7 @@ async function fetchTokenDataFromHTML(coinId) {
     
     const targetUrl = `https://pump.fun/coin/${fullCoinId}`;
     const proxyUrls = [
-      `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+      `${window.location.origin}/proxy?url=${encodeURIComponent(targetUrl)}`,
       `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
     ];
     
@@ -146,7 +146,8 @@ async function fetchTokenDataFromHTML(coinId) {
 
 
           const originalId = window._tokenOriginalId || coinId;
-          imageUrl = `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`;
+          const coinIdForImage = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
+          imageUrl = `https://images.pump.fun/coin-image/${coinIdForImage}?variant=86x86`;
           
 
           const jsonLd = doc.querySelector('script[type="application/ld+json"]');
@@ -284,7 +285,8 @@ async function fetchTokenDataFromHTML(coinId) {
                 if (ipfsHash || ipfsSrc) {
 
                   const originalId = window._tokenOriginalId || coinId;
-                  let constructedUrl = `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`;
+                  const coinIdForImage = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
+                  let constructedUrl = `https://images.pump.fun/coin-image/${coinIdForImage}?variant=86x86`;
                   
                   if (ipfsHash) {
                     constructedUrl += `&ipfs=${ipfsHash}`;
@@ -566,9 +568,9 @@ function getTokenImageUrl(tokenData, mintAddress) {
 
   if (mintAddress) {
     const originalId = window._tokenOriginalId || mintAddress;
-
-
-    const imageUrl = `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`;
+    // Ensure we don't add "pump" twice
+    const coinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
+    const imageUrl = `https://images.pump.fun/coin-image/${coinId}?variant=86x86`;
     return imageUrl;
   }
   
@@ -630,10 +632,12 @@ function generateTokenDataFromMint(mintAddress) {
     symbol += letters[lastLetterHash];
   }
   
+  // mintAddress doesn't contain "pump", so we need to add it
+  const coinId = mintAddress.endsWith('pump') ? mintAddress : `${mintAddress}pump`;
   const imagePatterns = [
-    `https://images.pump.fun/coin-image/${mintAddress}pump?variant=86x86`,
-    `https://images.pump.fun/coin-image/${mintAddress}pump`,
-    `https://pump.fun/coin-image/${mintAddress}pump`
+    `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
+    `https://images.pump.fun/coin-image/${coinId}`,
+    `https://pump.fun/coin-image/${coinId}`
   ];
   
   const streamImage = '/assets/streams/stream1.png';
@@ -687,6 +691,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   }
   
   const originalId = window._tokenOriginalId || mintAddress;
+  const coinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   const alternativeUrls = [];
   
   if (tokenImageUrl && tokenImageUrl.includes('images.pump.fun')) {
@@ -694,9 +699,9 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     alternativeUrls.push(
       tokenImageUrl,
       baseUrl,
-      `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`,
-      `https://images.pump.fun/coin-image/${originalId}pump?variant=200x200`,
-      `https://images.pump.fun/coin-image/${originalId}pump`
+      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
+      `https://images.pump.fun/coin-image/${coinId}?variant=200x200`,
+      `https://images.pump.fun/coin-image/${coinId}`
     );
   } else {
     alternativeUrls.push(tokenImageUrl);
@@ -914,7 +919,8 @@ function updateSocialMetaTags(tokenData, tokenSymbol, mintAddress) {
           let imageUrl = '';
           const originalId = window._tokenOriginalId || mintAddress;
           if (originalId) {
-            imageUrl = `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`;//images.pump.fun/coin-image/${originalId}pump?variant=86x86`;
+            const coinIdForImage = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
+            imageUrl = `https://images.pump.fun/coin-image/${coinIdForImage}?variant=86x86`;
           } else {
             const origin = window.location.origin;
             imageUrl = origin + '/pump1.svg';

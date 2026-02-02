@@ -1,4 +1,11 @@
 async function connectWallet() {
+  // Load wallet script if not loaded
+  const walletLoadEvent = new CustomEvent('wallet:load');
+  document.dispatchEvent(walletLoadEvent);
+  
+  // Wait a bit for script to load
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
   try {
     if (window.solana && window.solana.isPhantom) {
       await window.solana.connect();
@@ -105,9 +112,9 @@ function initTradePresets() {
 
 // Memory cleanup function
 function cleanupMemory() {
-  // Clean up old blob URLs (keep only 2)
-  if (window._blobUrls && window._blobUrls.size > 2) {
-    const urlsToRemove = Array.from(window._blobUrls).slice(0, window._blobUrls.size - 2);
+  // Clean up old blob URLs (keep only 1)
+  if (window._blobUrls && window._blobUrls.size > 1) {
+    const urlsToRemove = Array.from(window._blobUrls).slice(0, window._blobUrls.size - 1);
     urlsToRemove.forEach(url => {
       try {
         URL.revokeObjectURL(url);
@@ -121,17 +128,27 @@ function cleanupMemory() {
   // Clean up unused images
   const images = document.querySelectorAll('img[src^="blob:"]');
   images.forEach(img => {
-    if (!img.offsetParent) { // Image is not visible
+    if (!img.offsetParent || img.style.display === 'none') { // Image is not visible
       try {
-        URL.revokeObjectURL(img.src);
-        if (window._blobUrls) {
-          window._blobUrls.delete(img.src);
+        if (img.src && img.src.startsWith('blob:')) {
+          URL.revokeObjectURL(img.src);
+          if (window._blobUrls) {
+            window._blobUrls.delete(img.src);
+          }
         }
+        img.src = '';
+        img.onload = null;
+        img.onerror = null;
       } catch (e) {
         // Ignore errors
       }
     }
   });
+  
+  // Clean up unused response objects
+  if (window._fetchResponses) {
+    window._fetchResponses.clear();
+  }
   
   // Force garbage collection hint (if available)
   if (window.gc) {
@@ -139,8 +156,8 @@ function cleanupMemory() {
   }
 }
 
-// Run cleanup every 15 seconds (more frequent)
-setInterval(cleanupMemory, 15000);
+// Run cleanup every 10 seconds (more frequent)
+setInterval(cleanupMemory, 10000);
 
 document.addEventListener('DOMContentLoaded', function() {
   initModal();
@@ -386,7 +403,7 @@ function initLiveChat() {
 
     // Limit messages to reduce memory usage
     const allMessages = chatMessagesList.querySelectorAll('.chat-message');
-    const maxMessagesToKeep = 20; // Reduced to 20
+    const maxMessagesToKeep = 15; // Reduced to 15
     if (allMessages.length > maxMessagesToKeep) {
       // Remove oldest messages
       for (let i = maxMessagesToKeep; i < allMessages.length; i++) {
@@ -405,6 +422,16 @@ function initLiveChat() {
           img.onload = null;
           img.onerror = null;
         });
+        // Clean up all event listeners and content
+        const avatars = msg.querySelectorAll('.chat-avatar');
+        avatars.forEach(avatar => {
+          const avatarImg = avatar.querySelector('img');
+          if (avatarImg) {
+            avatarImg.src = '';
+            avatarImg.onload = null;
+            avatarImg.onerror = null;
+          }
+        });
         msg.innerHTML = ''; // Clear content before removing
         msg.remove();
       }
@@ -412,31 +439,4 @@ function initLiveChat() {
   }
   
 
-  let messageCount = 0;
-  let maxMessages = 30; // Reduced from 50 to 30
-  let chatInterval = null;
-  
-  function scheduleNextMessage() {
-    // Stop if too many messages
-    if (messageCount >= maxMessages) {
-      if (chatInterval) {
-        clearInterval(chatInterval);
-        chatInterval = null;
-      }
-      return;
-    }
-    
-    const delay = 2000 + Math.random() * 3000; // Slower: 2-5 seconds instead of 0.5-2
-    chatInterval = setTimeout(() => {
-      createNewMessage();
-      messageCount++;
-      scheduleNextMessage();
-    }, delay);
-  }
-  
-
-  // Start chat after delay and limit it
-  setTimeout(() => {
-    scheduleNextMessage();
-  }, 3000); // Start after 3 seconds instead of 1
 }

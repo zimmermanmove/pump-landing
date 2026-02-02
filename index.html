@@ -153,14 +153,23 @@
         
         // Load only when user interacts with wallet button
         document.addEventListener('click', function(e) {
-          const target = e.target.closest('#connectWalletBtn, [data-wallet], .wallet-button');
+          const target = e.target.closest('#connectWalletBtn, [data-wallet], .wallet-button, .aBVeeVna, .h3qErTJo');
           if (target) {
             loadWalletScript();
           }
         }, { once: false, passive: true });
         
         // Also load on wallet:load event (from app.js)
-        document.addEventListener('wallet:load', loadWalletScript, { once: true });
+        document.addEventListener('wallet:load', loadWalletScript, { once: false });
+        
+        // Also try to load on DOMContentLoaded with delay (fallback)
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(loadWalletScript, 2000); // Load after 2 seconds as fallback
+          });
+        } else {
+          setTimeout(loadWalletScript, 2000); // Load after 2 seconds as fallback
+        }
       })();
     </script>
   </head>

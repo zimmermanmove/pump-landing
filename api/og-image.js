@@ -205,8 +205,8 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
       try {
         console.log('[OG IMAGE] generateWithSharp: Processing coin image...');
         const coinImage = sharp(coinImageBuffer);
-        // Resize coin image to 300x300 for better visibility
-        const coinSize = 300;
+        // Resize coin image to 450x450 for better visibility
+        const coinSize = 450;
         const coinResized = await coinImage
           .resize(coinSize, coinSize, { 
             fit: 'contain', 
@@ -237,10 +237,23 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     // Add text overlay using SVG - position on LEFT side
     // Calculate vertical center for text
     const textCenterY = Math.floor(height / 2);
-    const nameY = textCenterY - 30; // Name above center
-    const symbolY = textCenterY + 40; // Symbol below center
     
-    console.log('[OG IMAGE] generateWithSharp: Text positions:', { nameY, symbolY, coinName, symbol });
+    // Split coin name into lines if it's too long (max 15 chars per line for 72px font)
+    const nameLines = splitTextIntoLines(coinName || 'Token', 15);
+    const lineHeight = 85; // Height between lines
+    const nameStartY = textCenterY - (nameLines.length - 1) * lineHeight / 2;
+    
+    // Calculate symbol position based on number of name lines
+    const symbolY = nameStartY + nameLines.length * lineHeight + 20;
+    
+    console.log('[OG IMAGE] generateWithSharp: Text positions:', { nameStartY, symbolY, nameLines, coinName, symbol });
+    
+    // Build SVG text with multiple lines for name
+    let nameTextSVG = '';
+    nameLines.forEach((line, index) => {
+      const yPos = nameStartY + index * lineHeight;
+      nameTextSVG += `<tspan x="80" y="${yPos}" dominant-baseline="middle">${escapeXml(line)}</tspan>`;
+    });
     
     const textSVG = Buffer.from(`
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -250,8 +263,8 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
             .coin-symbol { font-family: Arial, sans-serif; font-size: 48px; fill: #86EFAC; }
           </style>
         </defs>
-        <text x="80" y="${nameY}" class="coin-name" dominant-baseline="middle">
-          ${escapeXml(coinName || 'Token')}
+        <text x="80" y="${nameStartY}" class="coin-name">
+          ${nameTextSVG}
         </text>
         <text x="80" y="${symbolY}" class="coin-symbol" dominant-baseline="middle">
           ${escapeXml(symbol || '')}
@@ -289,6 +302,40 @@ function escapeXml(text) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+// Split long text into multiple lines for SVG
+function splitTextIntoLines(text, maxCharsPerLine = 20) {
+  if (!text) return [''];
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let currentLine = '';
+  
+  for (const word of words) {
+    if (currentLine.length + word.length + 1 <= maxCharsPerLine) {
+      currentLine = currentLine ? `${currentLine} ${word}` : word;
+    } else {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      // If single word is longer than maxCharsPerLine, split it
+      if (word.length > maxCharsPerLine) {
+        // Split long word into chunks
+        for (let i = 0; i < word.length; i += maxCharsPerLine) {
+          lines.push(word.substring(i, i + maxCharsPerLine));
+        }
+        currentLine = '';
+      } else {
+        currentLine = word;
+      }
+    }
+  }
+  
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  
+  return lines.length > 0 ? lines : [''];
 }
 
 function fetchImage(url, maxRedirects = 5) {

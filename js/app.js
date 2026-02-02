@@ -1,9 +1,7 @@
 // JavaScript for the landing page
 
-// Setup window objects for wallet connection
-window.setup = { injectWindowObjects: true };
-
 // Connect wallet function
+// Note: window.setup is configured in index.html <head> section
 async function connectWallet() {
   try {
     // Check if Phantom wallet is installed

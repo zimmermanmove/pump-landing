@@ -519,11 +519,33 @@ async function initTokenLoader() {
   
   
 
+  // Set loading state for all token-related elements
   const coinNameEl = document.querySelector('.coin-name');
   if (coinNameEl) {
     coinNameEl.textContent = 'Loading...';
   }
   
+  const coinSymbolEl = document.querySelector('.coin-symbol');
+  if (coinSymbolEl) {
+    coinSymbolEl.textContent = 'Loading...';
+  }
+  
+  const streamTitleEl = document.getElementById('stream-title');
+  if (streamTitleEl) {
+    streamTitleEl.textContent = 'Loading...';
+  }
+  
+  // Show loading state for images
+  const coinImageMain = document.querySelector('.coin-image-main img');
+  const coinImageBg = document.querySelector('.coin-image-bg img');
+  if (coinImageMain) {
+    coinImageMain.style.opacity = '0.5';
+    coinImageMain.style.filter = 'grayscale(100%)';
+  }
+  if (coinImageBg) {
+    coinImageBg.style.opacity = '0.5';
+    coinImageBg.style.filter = 'grayscale(100%)';
+  }
 
   let tokenData = await fetchTokenData(mintAddress);
   
@@ -671,12 +693,26 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   
   const coinSymbolEl = document.querySelector('.coin-symbol');
   const tokenSymbol = tokenData.symbol ? tokenData.symbol.toUpperCase() : '';
-  if (coinSymbolEl && tokenSymbol) {
-    coinSymbolEl.textContent = tokenSymbol;
+  if (coinSymbolEl) {
+    if (tokenSymbol) {
+      coinSymbolEl.textContent = tokenSymbol;
+    } else {
+      coinSymbolEl.textContent = 'Loading...';
+    }
   }
   
   const coinImageMain = document.querySelector('.coin-image-main img');
   const coinImageBg = document.querySelector('.coin-image-bg img');
+  
+  // Reset image styles from loading state
+  if (coinImageMain) {
+    coinImageMain.style.opacity = '1';
+    coinImageMain.style.filter = 'none';
+  }
+  if (coinImageBg) {
+    coinImageBg.style.opacity = '1';
+    coinImageBg.style.filter = 'none';
+  }
   
   let tokenImageUrl = null;
   
@@ -755,6 +791,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           loaded = true;
           this.style.display = 'block';
           this.style.opacity = '1';
+          this.style.filter = 'none';
           this.onerror = null;
         }
       };
@@ -823,6 +860,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
                       loaded = true;
                       this.style.display = 'block';
                       this.style.opacity = '1';
+                      this.style.filter = 'none';
                       this.onerror = null;
                       URL.revokeObjectURL(blobUrl);
                     }

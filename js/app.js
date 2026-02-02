@@ -183,14 +183,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Live chat animations and message generation
 function initLiveChat() {
-  const chatMessagesList = document.querySelector('.chat-messages-list');
+  const chatMessagesList = document.getElementById('chatMessagesList');
+  const chatEmptyState = document.getElementById('chatEmptyState');
   if (!chatMessagesList) return;
+  
+  // Hide empty state when messages appear
+  function checkEmptyState() {
+    const messages = chatMessagesList.querySelectorAll('.chat-message');
+    if (messages.length > 0 && chatEmptyState) {
+      chatEmptyState.classList.add('hidden');
+    } else if (messages.length === 0 && chatEmptyState) {
+      chatEmptyState.classList.remove('hidden');
+    }
+  }
   
   // Animate existing messages on load
   const existingMessages = chatMessagesList.querySelectorAll('.chat-message');
   existingMessages.forEach((msg, index) => {
     msg.style.animationDelay = `${index * 0.1}s`;
   });
+  
+  // Check initial state
+  checkEmptyState();
   
   // Auto-scroll to bottom
   const chatScroll = document.querySelector('.chat-scroll');
@@ -322,6 +336,9 @@ function initLiveChat() {
     
     // Insert message at the top (since we're using flex-direction: column-reverse)
     chatMessagesList.insertBefore(messageDiv, chatMessagesList.firstChild);
+    
+    // Hide empty state
+    checkEmptyState();
     
     // Trigger animation
     setTimeout(() => {

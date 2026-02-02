@@ -454,6 +454,290 @@ body {
   opacity: 0.5;
 }
 
+/* Picture-in-Picture */
+.video-pip {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  width: 120px;
+  height: 80px;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 0.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  z-index: 5;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+}
+
+.video-pip-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 100%;
+  padding: 0.5rem;
+}
+
+.video-pip-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #4b5563;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Loading Overlay */
+.video-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  pointer-events: none;
+}
+
+.video-loading-text {
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.video-unmute-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.video-unmute-hint svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.video-unmute-hint:hover {
+  color: white;
+}
+
+/* Stream Status */
+.stream-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.stream-status-badge {
+  display: inline-block;
+  background-color: #22c55e;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  width: fit-content;
+}
+
+.stream-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.stream-started {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+/* Channel Info */
+.channel-info {
+  background-color: #1b1b1b;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 1rem;
+}
+
+.channel-main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.channel-logo {
+  width: 3rem;
+  height: 3rem;
+  background-color: #000;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.channel-logo-text {
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.channel-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.channel-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  margin: 0;
+}
+
+.channel-verified {
+  color: #22c55e;
+  font-size: 0.875rem;
+}
+
+.channel-handle {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.channel-time {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.channel-primary-name {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.channel-live-badge {
+  background-color: #22c55e;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+}
+
+.channel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.channel-notify-btn,
+.channel-share-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  background-color: #22c55e;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.channel-notify-btn:hover,
+.channel-share-btn:hover {
+  background-color: #16a34a;
+}
+
+.channel-token-id {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-family: monospace;
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+}
+
+.channel-star-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.channel-star-btn:hover {
+  color: #fbbf24;
+}
+
+/* Stream Navigation */
+.stream-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stream-nav-btn {
+  background-color: #22c55e;
+  color: #000;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.stream-nav-btn:not(.active) {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: white;
+}
+
+.stream-nav-btn:not(.active):hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.stream-nav-link {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  text-decoration: none;
+  margin-left: auto;
+  transition: color 0.2s;
+}
+
+.stream-nav-link:hover {
+  color: white;
+}
+
 .video-badges {
   position: absolute;
   top: 1rem;
@@ -1084,6 +1368,24 @@ body {
   opacity: 0;
 }
 
+.chat-empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+  z-index: 10;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.chat-empty-state.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .chat-messages-list {
   display: flex;
   flex: 1;
@@ -1092,6 +1394,11 @@ body {
   overflow-y: auto;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
+  min-height: 100%;
+}
+
+.chat-messages-list:empty {
+  display: none;
 }
 
 .chat-messages-list::-webkit-scrollbar {

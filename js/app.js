@@ -1,47 +1,31 @@
-// JavaScript for the landing page
-
-// Connect wallet function
-// Note: window.setup is configured in index.html <head> section
 async function connectWallet() {
   try {
-    // Check if Phantom wallet is installed
     if (window.solana && window.solana.isPhantom) {
-      // Connect to Phantom wallet
-      const response = await window.solana.connect();
-      
-      // You can add additional logic here after successful connection
-      // For example, update UI, fetch balance, etc.
+      await window.solana.connect();
     } else {
-      // If Phantom is not installed, redirect to install page
       window.open('https://phantom.app/', '_blank');
     }
   } catch (err) {
   }
 }
 
-// Modal - cannot be closed
 function initModal() {
   const modal = document.getElementById('howItWorksModal');
   if (modal) {
-    // Always show modal, never hide it
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     
-    // Prevent closing by clicking backdrop
     const backdrop = modal.querySelector('.modal-backdrop');
     if (backdrop) {
       backdrop.addEventListener('click', (e) => {
         e.stopPropagation();
-        // Do nothing - modal cannot be closed
       });
     }
     
-    // Prevent closing with Escape key
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        // Do nothing - modal cannot be closed
       }
     });
   }
@@ -119,7 +103,6 @@ function initTradePresets() {
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', function() {
-  // Initialize modal (always visible, cannot be closed)
   initModal();
   
   // Connect wallet button
@@ -134,7 +117,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.TokenLoader && window.TokenLoader.init) {
       window.TokenLoader.init();
     } else {
-      // Try direct call as fallback
       if (typeof initTokenLoader === 'function') {
         initTokenLoader();
       }

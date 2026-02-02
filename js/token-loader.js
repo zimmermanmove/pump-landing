@@ -1,11 +1,7 @@
-// Token loader for pump.fun integration
-
-// Get token mint address from URL
 function getTokenMintFromURL() {
   const urlParams = new URLSearchParams(window.location.search);
   let mint = urlParams.get('mint') || urlParams.get('token') || urlParams.get('address');
   
-  // Check hash-based routing first (e.g., #/live/8fM59LxjW1AgejkZqMd3xciwizJXVYmgJyR486wDpump)
   if (!mint && window.location.hash) {
     const hashPath = window.location.hash.replace('#', '').replace(/^\//, '');
     const hashParts = hashPath.split('/').filter(p => p);
@@ -21,39 +17,30 @@ function getTokenMintFromURL() {
     }
   }
   
-  // Also check if mint is in the path (e.g., /live/8fM59LxjW1AgejkZqMd3xciwizJXVYmgJyR486wDpump or /coin/...)
   if (!mint) {
     const pathParts = window.location.pathname.split('/').filter(p => p);
-    
-    // Check for /live/ID pattern (pump.fun format)
     const liveIndex = pathParts.indexOf('live');
     if (liveIndex !== -1 && pathParts[liveIndex + 1]) {
       mint = pathParts[liveIndex + 1];
     } else {
-      // Check for /coin/ID pattern
       const coinIndex = pathParts.indexOf('coin');
       if (coinIndex !== -1 && pathParts[coinIndex + 1]) {
         mint = pathParts[coinIndex + 1];
       } else if (pathParts.length > 0) {
-        // If path is just a mint address (e.g., /8fM59LxjW1AgejkZqMd3xciwizJXVYmgJyR486wDpump)
         const lastPart = pathParts[pathParts.length - 1];
-        if (lastPart.length > 20) { // Likely a Solana address or pump.fun ID
+        if (lastPart.length > 20) {
           mint = lastPart;
         }
       }
     }
   }
   
-  // Store original ID with pump suffix for API calls
   const originalId = mint;
   
-  // Remove 'pump' suffix if present (pump.fun adds this to IDs)
-  // But keep original for API calls as pump.fun might need the full ID
   if (mint && mint.endsWith('pump')) {
     mint = mint.slice(0, -4);
   }
   
-  // Always store original ID for image URL construction
   if (originalId) {
     window._tokenOriginalId = originalId;
   }
@@ -61,7 +48,6 @@ function getTokenMintFromURL() {
   return mint;
 }
 
-// Fetch token data by parsing HTML from pump.fun page
 async function fetchTokenDataFromHTML(coinId) {
   if (!coinId) {
     return null;
@@ -72,10 +58,8 @@ async function fetchTokenDataFromHTML(coinId) {
     const originalId = window._tokenOriginalId || coinId;
     const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
     
-    // Try to fetch HTML page through public proxies (that actually work)
     const targetUrl = `https://pump.fun/coin/${fullCoinId}`;
     const proxyUrls = [
-      // Use working public proxies
       `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
     ];
     
@@ -201,7 +185,6 @@ async function fetchTokenDataFromHTML(coinId) {
                 /image_uri["']?\s*:\s*["']([^"']+)["']/i,
               ];
               
-              // Try to find name
               if (!coinName) {
                 for (const pattern of namePatterns) {
                   const match = script.textContent.match(pattern);
@@ -212,7 +195,6 @@ async function fetchTokenDataFromHTML(coinId) {
                 }
               }
               
-              // Try to find symbol
               if (!coinSymbol) {
                 for (const pattern of symbolPatterns) {
                   const match = script.textContent.match(pattern);
@@ -223,7 +205,6 @@ async function fetchTokenDataFromHTML(coinId) {
                 }
               }
               
-              // Try to find image_uri directly in script (pump.fun stores it here)
               // Look for: image_uri: "..." or "image_uri": "..." or image_uri="..."
               const imageUriPatterns = [
                 /image_uri["']?\s*[:=]\s*["']([^"']+)["']/i,
@@ -249,7 +230,6 @@ async function fetchTokenDataFromHTML(coinId) {
                 }
               }
               
-              // If still no image, try regular image patterns
               if (!imageUrl) {
                 for (const pattern of imagePatterns) {
                   const match = script.textContent.match(pattern);
@@ -269,9 +249,6 @@ async function fetchTokenDataFromHTML(coinId) {
                 }
               }
               
-              // Try to find IPFS hash or image URL parameters for images.pump.fun
-              // Look for patterns like: ipfs=... or src=https://ipfs.io/ipfs/...
-              // Also look for bafkrei... (IPFS hash pattern)
               if (!imageUrl || (imageUrl.includes('images.pump.fun') && !imageUrl.includes('ipfs'))) {
                 const ipfsHashPatterns = [
                   /ipfs["']?\s*[:=]\s*["']([^"']+)["']/i,
@@ -319,7 +296,6 @@ async function fetchTokenDataFromHTML(coinId) {
                 }
               }
               
-              // Try to parse as JSON if it looks like JSON
               try {
                 const jsonMatch = script.textContent.match(/\{[\s\S]*"name"[\s\S]*\}/);
                 if (jsonMatch) {
@@ -335,7 +311,6 @@ async function fetchTokenDataFromHTML(coinId) {
                       }
                     }
                   }
-                  // Also check for image_uri
                   if (jsonData.image_uri && !imageUrl) {
                     const foundImage = jsonData.image_uri;
                     if (!foundImage.includes('opengraph')) {
@@ -347,12 +322,10 @@ async function fetchTokenDataFromHTML(coinId) {
                   }
                 }
               } catch (e) {
-                // Not valid JSON, continue
               }
             }
           }
           
-          // Try to find coin name/symbol in page content (h1, h2, etc.)
           if (!coinName || !coinSymbol) {
             const headings = doc.querySelectorAll('h1, h2, h3, .coin-name, [class*="name"]');
             for (const heading of headings) {
@@ -366,7 +339,6 @@ async function fetchTokenDataFromHTML(coinId) {
             }
           }
           
-          // Return data even if only name or only image is found
           if (coinName || coinSymbol || imageUrl) {
             return {
               name: coinName || null,
@@ -396,12 +368,8 @@ async function fetchTokenData(mintAddress) {
     return null;
   }
   
-  // Try to fetch from HTML in parallel (don't wait if it's slow)
-  // Start HTML fetch but don't block on it
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
-  
-  // Try HTML fetch with longer timeout (10 seconds) - this is our ONLY source
   const htmlPromise = fetchTokenDataFromHTML(fullCoinId).catch(() => null);
   const htmlTimeout = new Promise(resolve => setTimeout(() => resolve(null), 10000));
   const htmlData = await Promise.race([htmlPromise, htmlTimeout]);
@@ -410,7 +378,6 @@ async function fetchTokenData(mintAddress) {
     return htmlData;
   }
   
-  // If HTML fetch failed, return null - will use generated fallback
   return null;
 }
 
@@ -480,7 +447,6 @@ function setStreamBackground(imagePath) {
   const existingImgs = videoBg.querySelectorAll('img');
   existingImgs.forEach(img => img.remove());
   
-  // Try different path formats
   const paths = [
     imagePath, // Original path
     `/${imagePath}`, // Absolute from root
@@ -488,7 +454,6 @@ function setStreamBackground(imagePath) {
     imagePath.replace(/^\/+/, '') // Remove leading slashes
   ];
   
-  // For HTTP URLs, use directly without trying alternative paths
   const pathToUse = imagePath.startsWith('http') ? imagePath : paths[0];
   
   // Set CSS background-image only (no img element)
@@ -504,7 +469,6 @@ function setStreamBackground(imagePath) {
     videoBg.style.setProperty('background-image', `url('${pathToUse}')`, 'important');
   };
   testImg.onerror = function() {
-    // Try alternative paths
     if (!pathToUse.startsWith('http')) {
       let pathIndex = 1;
       const tryNextPath = () => {
@@ -519,19 +483,16 @@ function setStreamBackground(imagePath) {
             if (pathIndex < paths.length) {
               tryNextPath();
             } else {
-              // Fallback to stream1.png
               videoBg.style.setProperty('background-image', `url('/assets/streams/stream1.png')`, 'important');
             }
           };
           altTestImg.src = altPath;
         } else {
-          // Fallback to stream1.png
           videoBg.style.setProperty('background-image', `url('/assets/streams/stream1.png')`, 'important');
         }
       };
       tryNextPath();
     } else {
-      // For HTTP URLs, use fallback
       videoBg.style.setProperty('background-image', `url('/assets/streams/stream1.png')`, 'important');
     }
   };
@@ -566,20 +527,16 @@ async function initTokenLoader() {
   if (tokenData) {
     updatePageWithTokenData(tokenData, mintAddress);
   } else {
-    // Generate token data from mint address
     const generatedData = generateTokenDataFromMint(mintAddress);
     
     if (generatedData) {
       updatePageWithTokenData(generatedData, mintAddress);
     } else {
-      // Ultimate fallback - just update stream
       if (coinNameEl) {
         coinNameEl.textContent = 'Peponk';
       }
-      // Stream background is already set in updatePageWithTokenData, no need to set again
     }
     
-    // Continue trying to fetch HTML in background - if it succeeds, update page
     setTimeout(async () => {
       const originalId = window._tokenOriginalId || mintAddress;
       const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
@@ -588,13 +545,11 @@ async function initTokenLoader() {
       if (lateHtmlData && (lateHtmlData.name || lateHtmlData.image_uri)) {
         updatePageWithTokenData(lateHtmlData, mintAddress);
       }
-    }, 2000); // Try again after 2 seconds
+    }, 2000);
   }
 }
 
-// Get token image URL - try to fetch from pump.fun directly
 function getTokenImageUrl(tokenData, mintAddress) {
-  // If we have image_uri from HTML parsing, use it first (most reliable)
   if (tokenData?.image_uri) {
     return tokenData.image_uri;
   }
@@ -615,8 +570,7 @@ function getTokenImageUrl(tokenData, mintAddress) {
     return imageUrl;
   }
   
-  // Fallback to default
-  return '/pump1.svg'; // Use SVG logo as fallback
+  return '/pump1.svg';
 }
 
 // Get stream image based on token (smart generation)
@@ -627,7 +581,6 @@ function getStreamImageForToken(tokenData, mintAddress) {
   }
   
   // Hash-based stream selection for consistent mapping
-  // Since we only have stream1.png, always use it for now
   // In the future, if you add more stream images, you can use:
   // const streamIndex = hashStringToNumber(mintAddress || 'default', 4) + 1;
   // return `/assets/streams/stream${streamIndex}.png`;
@@ -645,68 +598,54 @@ function hashStringToNumber(str, max) {
   return Math.abs(hash) % max;
 }
 
-// Generate token data from mint address (smart fallback)
 function generateTokenDataFromMint(mintAddress) {
   if (!mintAddress) return null;
   
-  // Use hash to generate consistent data for each mint
   const hash1 = hashStringToNumber(mintAddress, 1000);
   const hash2 = hashStringToNumber(mintAddress + 'name', 1000);
   const hash3 = hashStringToNumber(mintAddress + 'symbol', 26);
   
-  // Generate more realistic name based on hash
   const namePrefixes = ['Pixel', 'Doge', 'Pepe', 'Bonk', 'Worm', 'Cat', 'Dog', 'Moon', 'Rocket', 'Diamond', 'Gold', 'Silver', 'Crypto', 'Super', 'Mega', 'Ultra', 'Hyper', 'Turbo', 'Pro', 'Elite', 'Prime', 'Alpha', 'Beta', 'Gamma', 'Delta'];
   const nameSuffixes = ['Coin', 'Token', 'Inu', 'Coin', 'Token', 'Coin', 'Token', 'Coin', 'Token', 'Coin', 'Token', 'Coin', 'Token', 'Coin', 'Token'];
   const nameIndex = hash1 % namePrefixes.length;
   const suffixIndex = hash2 % nameSuffixes.length;
   const nameNumber = (hash1 + hash2) % 9999;
   
-  // Generate more realistic symbol (3-5 letters, often ending with common crypto suffixes)
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const symbolLength = 3 + (hash3 % 3); // 3-5 letters
   let symbol = '';
   
-  // First letter is more likely to be from first half of alphabet
   const firstLetterHash = hashStringToNumber(mintAddress + '0', 13);
   symbol += letters[firstLetterHash];
   
-  // Middle letters
   for (let i = 1; i < symbolLength - 1; i++) {
     const letterHash = hashStringToNumber(mintAddress + i.toString(), letters.length);
     symbol += letters[letterHash];
   }
   
-  // Last letter (if symbol is long enough)
   if (symbolLength > 2) {
     const lastLetterHash = hashStringToNumber(mintAddress + 'last', letters.length);
     symbol += letters[lastLetterHash];
   }
   
-  // Generate image URL - try to use token's image from various sources
-  // First, try to construct image URL from known patterns
   const imagePatterns = [
     `https://arweave.net/${mintAddress.slice(0, 43)}`,
     `https://ipfs.io/ipfs/${mintAddress.slice(0, 46)}`,
     `https://gateway.pinata.cloud/ipfs/${mintAddress.slice(0, 46)}`
   ];
   
-  // Use hash to select stream image (always use stream1.png for now)
-  // In the future, if you add more stream images, you can use:
-  // const streamIndex = hashStringToNumber(mintAddress, 4) + 1;
-  // const streamImage = `/assets/streams/stream${streamIndex}.png`;
   const streamImage = '/assets/streams/stream1.png';
   
   return {
     name: `${namePrefixes[nameIndex]} ${nameSuffixes[suffixIndex]} ${nameNumber}`,
     symbol: symbol,
-    image_uri: null, // Will use stream image as fallback
+    image_uri: null,
     description: `Token ${mintAddress.slice(0, 8)}...${mintAddress.slice(-8)}`,
     mint: mintAddress,
-    _generated: true // Flag to indicate this is generated data
+    _generated: true
   };
 }
 
-// Update page with token data
 function updatePageWithTokenData(tokenData, mintAddress) {
   if (!tokenData) {
     return;
@@ -724,18 +663,15 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     streamTitleEl.textContent = tokenData.name;
   }
   
-  // Update coin symbol
   const coinSymbolEl = document.querySelector('.coin-symbol');
   const tokenSymbol = tokenData.symbol ? tokenData.symbol.toUpperCase() : '';
   if (coinSymbolEl && tokenSymbol) {
     coinSymbolEl.textContent = tokenSymbol;
   }
   
-  // Update coin image - use image_uri directly from tokenData if available
   const coinImageMain = document.querySelector('.coin-image-main img');
   const coinImageBg = document.querySelector('.coin-image-bg img');
   
-  // Prioritize image_uri from parsed HTML data (most reliable)
   let tokenImageUrl = null;
   
   if (tokenData?.image_uri) {
@@ -745,53 +681,44 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   } else if (tokenData?.image) {
     tokenImageUrl = tokenData.image;
   } else {
-    // Fallback to constructing URL
     tokenImageUrl = getTokenImageUrl(tokenData, mintAddress);
   }
   
-  // Generate alternative URLs to try
   const originalId = window._tokenOriginalId || mintAddress;
   const alternativeUrls = [];
   
   if (tokenImageUrl && tokenImageUrl.includes('images.pump.fun')) {
-    // Try different variants of the same URL
     const baseUrl = tokenImageUrl.split('?')[0];
     alternativeUrls.push(
-      tokenImageUrl, // Original with variant
-      baseUrl, // Without variant
-      `https://images.pump.fun/coin-image/${originalId}`, // Base URL
-      `https://images.pump.fun/coin-image/${originalId}?variant=256x256`, // Larger variant
-      `https://images.pump.fun/coin-image/${originalId}?variant=512x512` // Even larger
+      tokenImageUrl,
+      baseUrl,
+      `https://images.pump.fun/coin-image/${originalId}`,
+      `https://images.pump.fun/coin-image/${originalId}?variant=256x256`,
+      `https://images.pump.fun/coin-image/${originalId}?variant=512x512`
     );
   } else {
     alternativeUrls.push(tokenImageUrl);
   }
   
   
-  // Function to try loading image with multiple URLs
   async function tryLoadImage(imgElement, urls, fallbackUrl, elementName) {
     if (!imgElement) {
       return;
     }
     
-    // Remove any existing handlers
     imgElement.onerror = null;
     imgElement.onload = null;
-    imgElement.crossOrigin = 'anonymous'; // Allow CORS
+    imgElement.crossOrigin = 'anonymous';
     
-    // Try direct URLs first
     let currentIndex = 0;
     let loaded = false;
     
     function tryNextUrl() {
       if (currentIndex >= urls.length) {
-        // All direct URLs failed, try loading via fetch + proxy
         if (!loaded && urls[0] && urls[0].startsWith('http')) {
           loadViaProxy(urls[0]);
           return;
         }
-        
-        // Try fallback
         if (!loaded) {
           imgElement.src = fallbackUrl;
           imgElement.onerror = function() {
@@ -802,14 +729,12 @@ function updatePageWithTokenData(tokenData, mintAddress) {
         return;
       }
       
-      const url = urls[currentIndex];
-      
-      // If URL is from images.pump.fun, use proxy immediately (CORS issue)
-      if (url.includes('images.pump.fun')) {
-        // Use proxy for this URL
-        loadViaProxy(url);
-        return;
-      }
+              const url = urls[currentIndex];
+              
+              if (url.includes('images.pump.fun')) {
+                loadViaProxy(url);
+                return;
+              }
       
       imgElement.src = url;
       
@@ -828,7 +753,6 @@ function updatePageWithTokenData(tokenData, mintAddress) {
       };
     }
     
-    // Function to load image via proxy using fetch + blob
     async function loadViaProxy(imageUrl) {
       try {
         // Use server's proxy endpoint through /proxy path (Nginx will route to port 3001)
@@ -886,16 +810,16 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           
           const blobUrl = URL.createObjectURL(blob);
           
-          imgElement.src = blobUrl;
-          imgElement.onload = function() {
-            if (!loaded) {
-              loaded = true;
-              this.style.display = 'block';
-              this.style.opacity = '1';
-              this.onerror = null;
-              URL.revokeObjectURL(blobUrl); // Clean up after successful load
-            }
-          };
+                  imgElement.src = blobUrl;
+                  imgElement.onload = function() {
+                    if (!loaded) {
+                      loaded = true;
+                      this.style.display = 'block';
+                      this.style.opacity = '1';
+                      this.onerror = null;
+                      URL.revokeObjectURL(blobUrl);
+                    }
+                  };
           
           imgElement.onerror = function() {
             URL.revokeObjectURL(blobUrl);
@@ -918,49 +842,40 @@ function updatePageWithTokenData(tokenData, mintAddress) {
             this.onerror = null;
           };
         }
-      }
-    }
-    
-    // Start trying URLs
-    tryNextUrl();
+            }
+          }
+          
+          tryNextUrl();
   }
   
-  // Update main coin image
   if (coinImageMain) {
     coinImageMain.alt = tokenData.name || 'Token image';
     tryLoadImage(coinImageMain, alternativeUrls, '/pump1.svg', 'Coin image main').catch(err => {
     });
   }
   
-  // Update background coin image
   if (coinImageBg) {
     coinImageBg.alt = tokenData.name || 'Token image';
     tryLoadImage(coinImageBg, alternativeUrls, '/pump1.svg', 'Coin image background').catch(err => {
     });
   }
   
-  // Update stream background - use token image if available, otherwise use smart generation
-  let imageToUse = null;
-  if (!tokenData._generated && (tokenData.image_uri || tokenData.imageUri || tokenData.image)) {
-    imageToUse = tokenData.image_uri || tokenData.imageUri || tokenData.image;
-  } else {
-    // Fallback: use hash-based stream selection (always works)
-    imageToUse = getStreamImageForToken(tokenData, mintAddress);
-  }
+          let imageToUse = null;
+          if (!tokenData._generated && (tokenData.image_uri || tokenData.imageUri || tokenData.image)) {
+            imageToUse = tokenData.image_uri || tokenData.imageUri || tokenData.image;
+          } else {
+            imageToUse = getStreamImageForToken(tokenData, mintAddress);
+          }
   
   if (imageToUse) {
     setStreamBackground(imageToUse);
   }
   
-  // Update page title
-  if (tokenData.name) {
-    document.title = `${tokenData.name} (${tokenSymbol}) - Pump`;
-  }
-  
-  // Update Open Graph and Twitter Card meta tags for social media preview
-  updateSocialMetaTags(tokenData, tokenSymbol, mintAddress);
-  
-  // Update creator info if available
+          if (tokenData.name) {
+            document.title = `${tokenData.name} (${tokenSymbol}) - Pump`;
+          }
+          
+          updateSocialMetaTags(tokenData, tokenSymbol, mintAddress);
   if (tokenData.creator) {
     const creatorNameEl = document.querySelector('.coin-meta span');
     if (creatorNameEl && tokenData.creator.username) {
@@ -968,7 +883,6 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     }
   }
   
-  // Update "Switch to" button with token symbol (first button in trade-actions)
   const tradeActions = document.querySelector('.trade-actions');
   if (tradeActions && tokenSymbol) {
     const switchBtn = tradeActions.querySelector('.trade-action-btn:first-child');
@@ -977,7 +891,6 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     }
   }
   
-  // Update mint address in copy button
   const copyBtn = document.querySelector('.coin-action-btn.copy span');
   if (copyBtn && mintAddress) {
     const shortAddress = mintAddress.length > 8 
@@ -988,40 +901,30 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   
 }
 
-// Update social media meta tags (Open Graph and Twitter Card)
 function updateSocialMetaTags(tokenData, tokenSymbol, mintAddress) {
   if (!tokenData) return;
   
-  const coinName = tokenData.name || 'Token';
-  const symbol = tokenSymbol || tokenData.symbol || '';
-  const description = tokenData.description || `Trade ${coinName} (${symbol}) on Pump. Pump allows anyone to create coins. All coins created on Pump are fair-launch, meaning everyone has equal access to buy and sell when the coin is first created.`;
-  
-  // Get current URL
-  const currentUrl = window.location.href;
-  
-  // Get image URL - use the coin image if available
-  let imageUrl = '';
-  const originalId = window._tokenOriginalId || mintAddress;
-  if (originalId) {
-    // Use images.pump.fun for reliable image URL - use larger variant for social media
-    imageUrl = `https://images.pump.fun/coin-image/${originalId}?variant=86x86`;
-  } else {
-    // Fallback to default image - make sure it's absolute
-    const origin = window.location.origin;
-    imageUrl = origin + '/pump1.svg';
-  }
-  
-  // Make image URL absolute if it's relative
-  if (imageUrl && !imageUrl.startsWith('http')) {
-    imageUrl = window.location.origin + imageUrl;
-  }
-  
-  // Ensure image URL is absolute with protocol
-  if (imageUrl && imageUrl.startsWith('//')) {
-    imageUrl = window.location.protocol + imageUrl;
-  }
-  
-  // Update Open Graph tags
+          const coinName = tokenData.name || 'Token';
+          const symbol = tokenSymbol || tokenData.symbol || '';
+          const description = tokenData.description || `Trade ${coinName} (${symbol}) on Pump. Pump allows anyone to create coins. All coins created on Pump are fair-launch, meaning everyone has equal access to buy and sell when the coin is first created.`;
+          
+          const currentUrl = window.location.href;
+          let imageUrl = '';
+          const originalId = window._tokenOriginalId || mintAddress;
+          if (originalId) {
+            imageUrl = `https://images.pump.fun/coin-image/${originalId}?variant=86x86`;
+          } else {
+            const origin = window.location.origin;
+            imageUrl = origin + '/pump1.svg';
+          }
+          
+          if (imageUrl && !imageUrl.startsWith('http')) {
+            imageUrl = window.location.origin + imageUrl;
+          }
+          
+          if (imageUrl && imageUrl.startsWith('//')) {
+            imageUrl = window.location.protocol + imageUrl;
+          }
   const ogTitle = document.getElementById('og-title');
   const ogDescription = document.getElementById('og-description');
   const ogImage = document.getElementById('og-image');
@@ -1032,7 +935,6 @@ function updateSocialMetaTags(tokenData, tokenSymbol, mintAddress) {
   if (ogImage) ogImage.setAttribute('content', imageUrl);
   if (ogUrl) ogUrl.setAttribute('content', currentUrl);
   
-  // Update Twitter Card tags
   const twitterTitle = document.getElementById('twitter-title');
   const twitterDescription = document.getElementById('twitter-description');
   const twitterImage = document.getElementById('twitter-image');

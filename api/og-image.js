@@ -28,32 +28,103 @@ function fetchTokenDataFromHTML(coinId) {
       // Try to fetch through proxy
       const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(targetUrl)}`;
       
+      console.log('[OG IMAGE] Fetching from proxy:', proxyUrl);
+      
       http.get(proxyUrl, (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
           try {
-            // Parse HTML
+            let coinName = null;
+            let coinSymbol = null;
+            
+            // Parse HTML - try multiple methods
+            // Method 1: Parse title tag
             const titleMatch = data.match(/<title>(.+?)<\/title>/i);
             if (titleMatch) {
               const titleText = titleMatch[1];
-              const nameMatch = titleText.match(/(.+?)\s*\(([^)]+)\)/);
+              // Try format with parentheses: "Name (SYMBOL) - Pump"
+              const nameMatch = titleText.match(/(.+?)\s*\(([^)]+)\)\s*-\s*Pump/i);
               if (nameMatch) {
-                resolve({
-                  name: nameMatch[1].trim(),
-                  symbol: nameMatch[2].trim()
-                });
-                return;
+                coinName = nameMatch[1].trim();
+                coinSymbol = nameMatch[2].trim();
+              } else {
+                // Try format without parentheses: "Name - Pump"
+                const nameMatch2 = titleText.match(/(.+?)\s*-\s*Pump/i);
+                if (nameMatch2) {
+                  coinName = nameMatch2[1].trim();
+                }
               }
             }
+            
+            // Method 2: Parse og:title meta tag
+            if (!coinName || !coinSymbol) {
+              const ogTitleMatch = data.match(/<meta\s+property=["']og:title["']\s+content=["'](.+?)["']/i);
+              if (ogTitleMatch) {
+                const ogTitleText = ogTitleMatch[1];
+                const ogMatch = ogTitleText.match(/(.+?)\s*\(([^)]+)\)/);
+                if (ogMatch) {
+                  if (!coinName) coinName = ogMatch[1].trim();
+                  if (!coinSymbol) coinSymbol = ogMatch[2].trim();
+                }
+              }
+            }
+            
+            // Method 3: Try to find in h1, h2 tags
+            if (!coinName || !coinSymbol) {
+              const h1Match = data.match(/<h1[^>]*>(.+?)<\/h1>/i);
+              if (h1Match) {
+                const h1Text = h1Match[1].replace(/<[^>]+>/g, '').trim();
+                const h1NameMatch = h1Text.match(/(.+?)\s*\(([^)]+)\)/);
+                if (h1NameMatch) {
+                  if (!coinName) coinName = h1NameMatch[1].trim();
+                  if (!coinSymbol) coinSymbol = h1NameMatch[2].trim();
+                } else if (!coinName) {
+                  coinName = h1Text;
+                }
+              }
+            }
+            
+            // Method 4: Try to find in JSON-LD structured data
+            if (!coinName || !coinSymbol) {
+              const jsonLdMatches = data.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>(.+?)<\/script>/gis);
+              if (jsonLdMatches) {
+                for (const jsonLd of jsonLdMatches) {
+                  try {
+                    const jsonContent = jsonLd.match(/<script[^>]*>(.+?)<\/script>/is)[1];
+                    const jsonData = JSON.parse(jsonContent);
+                    if (jsonData.name && !coinName) coinName = jsonData.name;
+                    if (jsonData.symbol && !coinSymbol) coinSymbol = jsonData.symbol;
+                  } catch (e) {
+                    // Not valid JSON, continue
+                  }
+                }
+              }
+            }
+            
+            if (coinName || coinSymbol) {
+              console.log('[OG IMAGE] Parsed token data:', { coinName, coinSymbol });
+              resolve({
+                name: coinName,
+                symbol: coinSymbol
+              });
+              return;
+            }
           } catch (e) {
-            console.log('Error parsing HTML:', e.message);
+            console.log('[OG IMAGE] Error parsing HTML:', e.message);
           }
           resolve(null);
         });
-        res.on('error', () => resolve(null));
-      }).on('error', () => resolve(null));
+        res.on('error', (err) => {
+          console.log('[OG IMAGE] Error receiving data:', err.message);
+          resolve(null);
+        });
+      }).on('error', (err) => {
+        console.log('[OG IMAGE] Error fetching from proxy:', err.message);
+        resolve(null);
+      });
     } catch (error) {
+      console.log('[OG IMAGE] Error in fetchTokenDataFromHTML:', error.message);
       resolve(null);
     }
   });
@@ -97,9 +168,16 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     // Download coin image
     let coinImageBuffer = null;
     try {
+      console.log('[OG IMAGE] Fetching coin image from:', coinImageUrl);
       coinImageBuffer = await fetchImage(coinImageUrl);
+      if (coinImageBuffer) {
+        console.log('[OG IMAGE] Successfully fetched coin image, size:', coinImageBuffer.length);
+      } else {
+        console.log('[OG IMAGE] Coin image fetch returned null/empty');
+      }
     } catch (e) {
-      console.log('Could not fetch coin image:', e.message);
+      console.log('[OG IMAGE] Could not fetch coin image:', e.message);
+      console.log('[OG IMAGE] Error stack:', e.stack);
     }
     
     // Prepare composites array
@@ -185,17 +263,88 @@ function escapeXml(text) {
 
 function fetchImage(url) {
   return new Promise((resolve, reject) => {
+    console.log('[OG IMAGE] fetchImage: Starting fetch for', url);
+    
+    // For images.pump.fun, we might need to use proxy to avoid CORS/connection issues
+    // But since we're on the server, we can try direct fetch first
     const protocol = url.startsWith('https') ? https : http;
-    protocol.get(url, (res) => {
+    
+    const request = protocol.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'image/*,*/*'
+      },
+      timeout: 10000
+    }, (res) => {
+      console.log('[OG IMAGE] fetchImage: Response status:', res.statusCode, 'Content-Type:', res.headers['content-type']);
+      
       if (res.statusCode !== 200) {
+        // If direct fetch fails, try through proxy
+        if (url.includes('images.pump.fun')) {
+          console.log('[OG IMAGE] fetchImage: Direct fetch failed, trying proxy...');
+          const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(url)}`;
+          http.get(proxyUrl, (proxyRes) => {
+            if (proxyRes.statusCode !== 200) {
+              reject(new Error(`Proxy fetch failed: ${proxyRes.statusCode}`));
+              return;
+            }
+            const chunks = [];
+            proxyRes.on('data', (chunk) => chunks.push(chunk));
+            proxyRes.on('end', () => {
+              const buffer = Buffer.concat(chunks);
+              console.log('[OG IMAGE] fetchImage: Proxy fetch successful, size:', buffer.length);
+              resolve(buffer);
+            });
+            proxyRes.on('error', reject);
+          }).on('error', (err) => {
+            console.log('[OG IMAGE] fetchImage: Proxy error:', err.message);
+            reject(err);
+          });
+          return;
+        }
         reject(new Error(`Failed to fetch image: ${res.statusCode}`));
         return;
       }
+      
       const chunks = [];
       res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => resolve(Buffer.concat(chunks)));
+      res.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        console.log('[OG IMAGE] fetchImage: Direct fetch successful, size:', buffer.length);
+        resolve(buffer);
+      });
       res.on('error', reject);
-    }).on('error', reject);
+    });
+    
+    request.on('error', (err) => {
+      console.log('[OG IMAGE] fetchImage: Request error:', err.message);
+      // Try proxy as fallback
+      if (url.includes('images.pump.fun')) {
+        console.log('[OG IMAGE] fetchImage: Trying proxy fallback...');
+        const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(url)}`;
+        http.get(proxyUrl, (proxyRes) => {
+          if (proxyRes.statusCode !== 200) {
+            reject(new Error(`Proxy fetch failed: ${proxyRes.statusCode}`));
+            return;
+          }
+          const chunks = [];
+          proxyRes.on('data', (chunk) => chunks.push(chunk));
+          proxyRes.on('end', () => {
+            const buffer = Buffer.concat(chunks);
+            console.log('[OG IMAGE] fetchImage: Proxy fallback successful, size:', buffer.length);
+            resolve(buffer);
+          });
+          proxyRes.on('error', reject);
+        }).on('error', reject);
+      } else {
+        reject(err);
+      }
+    });
+    
+    request.setTimeout(10000, () => {
+      request.destroy();
+      reject(new Error('Image fetch timeout'));
+    });
   });
 }
 
@@ -204,18 +353,28 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
   try {
     console.log('[OG IMAGE] Request received:', { tokenId, coinName, symbol, coinImageUrl });
     
-    // If coinName or symbol not provided, try to fetch from HTML
-    if (tokenId && (!coinName || coinName === 'Token' || coinName.startsWith('Token ') || !symbol)) {
+    // Always try to fetch from HTML if we have tokenId (to get real name, not "Token XXX")
+    if (tokenId) {
       try {
-        console.log('[OG IMAGE] Fetching token data from HTML...');
+        console.log('[OG IMAGE] Fetching token data from HTML for tokenId:', tokenId);
         const tokenData = await fetchTokenDataFromHTML(tokenId);
         if (tokenData) {
-          coinName = tokenData.name || coinName;
-          symbol = tokenData.symbol || symbol;
-          console.log('[OG IMAGE] Fetched token data:', { coinName, symbol });
+          // Use fetched data if available, otherwise keep what was passed
+          if (tokenData.name && tokenData.name !== 'Token' && !tokenData.name.startsWith('Token ')) {
+            coinName = tokenData.name;
+            console.log('[OG IMAGE] Using fetched coin name:', coinName);
+          }
+          if (tokenData.symbol) {
+            symbol = tokenData.symbol;
+            console.log('[OG IMAGE] Using fetched symbol:', symbol);
+          }
+          console.log('[OG IMAGE] Final token data:', { coinName, symbol });
+        } else {
+          console.log('[OG IMAGE] No token data fetched from HTML');
         }
       } catch (e) {
         console.log('[OG IMAGE] Could not fetch token data:', e.message);
+        console.log('[OG IMAGE] Error stack:', e.stack);
       }
     }
     

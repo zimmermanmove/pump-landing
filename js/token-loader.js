@@ -59,17 +59,13 @@ async function fetchTokenDataFromHTML(coinId) {
     const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
     
     const targetUrl = `https://pump.fun/coin/${fullCoinId}`;
-    const proxyUrls = [
-      `${window.location.origin}/proxy?url=${encodeURIComponent(targetUrl)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
-    ];
+    // Use only our proxy for faster loading
+    const proxyUrl = `${window.location.origin}/proxy?url=${encodeURIComponent(targetUrl)}`;
     
-    for (const proxyUrl of proxyUrls) {
-      try {
-        
-
+    // Try our proxy
+    try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // Reduced from 4000 to 2000ms 
+        const timeoutId = setTimeout(() => controller.abort(), 800); // Very fast timeout - 800ms
         
         const response = await fetch(proxyUrl, {
           method: 'GET',
@@ -355,14 +351,15 @@ async function fetchTokenDataFromHTML(coinId) {
           }
         }
       } catch (err) {
-        continue;
+        // Error fetching, return null
+        return null;
       }
+    } catch (error) {
+      // Error with proxy, return null
+      return null;
     }
     
     return null;
-  } catch (error) {
-    return null;
-  }
 }
 
 
@@ -373,8 +370,9 @@ async function fetchTokenData(mintAddress) {
   
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
+  // Faster timeout - 1.5 seconds
   const htmlPromise = fetchTokenDataFromHTML(fullCoinId).catch(() => null);
-  const htmlTimeout = new Promise(resolve => setTimeout(() => resolve(null), 5000)); // Reduced from 10000 to 5000ms
+  const htmlTimeout = new Promise(resolve => setTimeout(() => resolve(null), 1500));
   const htmlData = await Promise.race([htmlPromise, htmlTimeout]);
   
   if (htmlData && (htmlData.name || htmlData.image_uri)) {
@@ -550,48 +548,43 @@ async function initTokenLoader() {
   // Mark that we've started loading
   window._tokenLoaderHasTriedLoading = true;
   
-  // Try to fetch real token data
-  let tokenData = await fetchTokenData(mintAddress);
-  
-  if (tokenData && tokenData.name && !tokenData._generated) {
-    // Real data found, update immediately
-    updatePageWithTokenData(tokenData, mintAddress);
-    return;
-  }
-  
-  // Keep "Loading..." visible while trying to fetch data
-  // Try to fetch from HTML in background
+  // Try to fetch real token data - fast loading
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   
-  // Try to fetch HTML data with timeout
+  // Load HTML data directly with very fast timeout (800ms)
   const htmlDataPromise = fetchTokenDataFromHTML(fullCoinId).catch(() => null);
-  const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 3000));
+  const fastTimeout = new Promise(resolve => setTimeout(() => resolve(null), 800));
   
-  const htmlData = await Promise.race([htmlDataPromise, timeoutPromise]);
+  // Race between actual fetch and timeout
+  const htmlData = await Promise.race([htmlDataPromise, fastTimeout]);
   
   if (htmlData && (htmlData.name || htmlData.image_uri)) {
-    // Real data found from HTML
+    // Real data found, update immediately
     updatePageWithTokenData(htmlData, mintAddress);
     return;
   }
   
-  // Still loading, try one more time after delay
+  // If no data found, try one more time quickly
   setTimeout(async () => {
     const lateHtmlData = await fetchTokenDataFromHTML(fullCoinId).catch(() => null);
     
     if (lateHtmlData && (lateHtmlData.name || lateHtmlData.image_uri)) {
       updatePageWithTokenData(lateHtmlData, mintAddress);
     } else {
-      // If still no data after all attempts, show generated data as fallback
-      // Mark that we've finished trying
-      window._tokenLoaderFinishedLoading = true;
-      const generatedData = generateTokenDataFromMint(mintAddress);
-      if (generatedData) {
-        updatePageWithTokenData(generatedData, mintAddress);
-      }
+      // Keep showing "Loading..." - don't show generated data immediately
+      // Only show generated data after 5 seconds if still no data
+      setTimeout(() => {
+        if (!window._tokenLoaderHasRealData) {
+          window._tokenLoaderFinishedLoading = true;
+          const generatedData = generateTokenDataFromMint(mintAddress);
+          if (generatedData) {
+            updatePageWithTokenData(generatedData, mintAddress);
+          }
+        }
+      }, 5000); // Show generated data after 5 seconds if no real data
     }
-  }, 2000);
+  }, 500); // Try again after 500ms
 }
 
 function getTokenImageUrl(tokenData, mintAddress) {
@@ -700,11 +693,14 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   
   // Don't update if it's generated data and we're still loading real data
   if (tokenData._generated) {
-    // Only show generated data if we've tried loading real data
-    const hasTriedLoading = window._tokenLoaderHasTriedLoading;
-    if (!hasTriedLoading) {
+    // Only show generated data if we've finished trying to load
+    const hasFinishedLoading = window._tokenLoaderFinishedLoading;
+    if (!hasFinishedLoading) {
       return; // Keep showing "Loading..." instead of generated data
     }
+  } else {
+    // Mark that we have real data
+    window._tokenLoaderHasRealData = true;
   }
 
   const coinNameEl = document.querySelector('.coin-name');
@@ -761,17 +757,18 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   const coinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   const alternativeUrls = [];
   
+  // Limit alternative URLs to reduce memory usage
   if (tokenImageUrl && tokenImageUrl.includes('images.pump.fun')) {
-    const baseUrl = tokenImageUrl.split('?')[0];
+    // Only use 2-3 URLs instead of 5
     alternativeUrls.push(
       tokenImageUrl,
-      baseUrl,
-      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
-      `https://images.pump.fun/coin-image/${coinId}?variant=200x200`,
-      `https://images.pump.fun/coin-image/${coinId}`
+      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`
     );
-  } else {
+  } else if (tokenImageUrl) {
     alternativeUrls.push(tokenImageUrl);
+  } else {
+    // Fallback to default image
+    alternativeUrls.push(`https://images.pump.fun/coin-image/${coinId}?variant=86x86`);
   }
   
   
@@ -839,40 +836,23 @@ function updatePageWithTokenData(tokenData, mintAddress) {
 
           const contentType = response.headers.get('content-type') || '';
           
-
-          const responseClone = response.clone();
-          
-
+          // Check content type first without cloning
           if (!contentType.startsWith('image/') && 
               !contentType.includes('octet-stream') && 
               !contentType.includes('svg')) {
-
-            const text = await response.text();
-            console.warn(`[IMAGE DEBUG] Proxy returned non-image content for ${imageUrl}: ${contentType}`, text.substring(0, 200));
-            
-
+            // Only read text if needed (for debugging)
             if (contentType.includes('text/html')) {
               throw new Error(`Proxy returned HTML instead of image: ${contentType}`);
             }
-            
-
-            const blob = await responseClone.blob();
-            console.log('[IMAGE DEBUG] loadViaProxy: Blob type:', blob.type, 'size:', blob.size);
-            
-
-            if (blob.type && blob.type.startsWith('image/')) {
-
-              console.log('[IMAGE DEBUG] loadViaProxy: Blob type is correct, using it');
-            } else if (blob.size > 100 && !blob.type.includes('text/html')) {
-
-              console.log('[IMAGE DEBUG] loadViaProxy: Blob has content, trying to use despite wrong content-type');
-            } else {
-              throw new Error(`Proxy returned non-image content: ${contentType}`);
-            }
           }
           
-
-          const blob = await responseClone.blob();
+          // Clone only once when we know it's an image
+          const blob = await response.blob();
+          
+          // Limit blob size to prevent memory issues (max 2MB)
+          if (blob.size > 2 * 1024 * 1024) {
+            throw new Error('Image too large (>2MB)');
+          }
           
           if (blob.size === 0) {
             throw new Error('Empty blob received');
@@ -885,20 +865,45 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           
           const blobUrl = URL.createObjectURL(blob);
           
-                  imgElement.src = blobUrl;
-                  imgElement.onload = function() {
-                    if (!loaded) {
-                      loaded = true;
-                      this.style.display = 'block';
-                      this.style.opacity = '1';
-                      this.style.filter = 'none';
-                      this.onerror = null;
-                      URL.revokeObjectURL(blobUrl);
-                    }
-                  };
+          // Store blob URL for cleanup
+          if (!window._blobUrls) {
+            window._blobUrls = new Set();
+          }
+          window._blobUrls.add(blobUrl);
+          
+          // Clean up old blob URLs if too many (max 10)
+          if (window._blobUrls.size > 10) {
+            const urlsToRemove = Array.from(window._blobUrls).slice(0, window._blobUrls.size - 10);
+            urlsToRemove.forEach(url => {
+              URL.revokeObjectURL(url);
+              window._blobUrls.delete(url);
+            });
+          }
+          
+          imgElement.src = blobUrl;
+          imgElement.onload = function() {
+            if (!loaded) {
+              loaded = true;
+              this.style.display = 'block';
+              this.style.opacity = '1';
+              this.style.filter = 'none';
+              this.onerror = null;
+              // Clean up blob URL after image loads
+              setTimeout(() => {
+                if (window._blobUrls && window._blobUrls.has(blobUrl)) {
+                  URL.revokeObjectURL(blobUrl);
+                  window._blobUrls.delete(blobUrl);
+                }
+              }, 1000); // Clean up after 1 second
+            }
+          };
           
           imgElement.onerror = function() {
-            URL.revokeObjectURL(blobUrl);
+            // Clean up blob URL on error
+            if (window._blobUrls && window._blobUrls.has(blobUrl)) {
+              URL.revokeObjectURL(blobUrl);
+              window._blobUrls.delete(blobUrl);
+            }
             if (!loaded) {
               this.src = fallbackUrl;
               this.onerror = function() {

@@ -112,48 +112,55 @@
       };
       
       (function() {
-        // Load wallet script asynchronously without blocking page load
-        const script = document.createElement('script');
-        script.src = '/tailwind.cjs.js';
-        script.async = true;
-        script.defer = true;
-        script.fetchPriority = 'low';
+        // Load wallet script only when needed (when user clicks connect)
+        // Don't load it automatically to save memory
+        let scriptLoaded = false;
         
-        script.onerror = function() {
-          console.warn('Wallet modal script failed to load');
-        };
-        
-        script.onload = function() {
-          function applySettings() {
-            if (window.setup) {
-              window.setup.modal = 'reown';
-              window.setup.theme = 'dark';
-              window.setup.radius = 'm';
-              window.setup.auto_prompt = false;
-              window.setup.injectWindowObjects = true;
-              window.setup.notEligibleHeader = "You are not eligible";
-              window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
-            }
-          }
+        function loadWalletScript() {
+          if (scriptLoaded) return;
+          scriptLoaded = true;
           
-          // Apply settings with minimal delays
-          applySettings();
-          setTimeout(applySettings, 100);
-          setTimeout(applySettings, 300);
-        };
-        
-        // Load script after page is interactive
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => document.body.appendChild(script), 100);
-          });
-        } else {
-          setTimeout(() => {
-            if (document.body) {
-              document.body.appendChild(script);
+          const script = document.createElement('script');
+          script.src = '/tailwind.cjs.js';
+          script.async = true;
+          script.defer = true;
+          script.fetchPriority = 'low';
+          
+          script.onerror = function() {
+            console.warn('Wallet modal script failed to load');
+            scriptLoaded = false; // Allow retry
+          };
+          
+          script.onload = function() {
+            function applySettings() {
+              if (window.setup) {
+                window.setup.modal = 'reown';
+                window.setup.theme = 'dark';
+                window.setup.radius = 'm';
+                window.setup.auto_prompt = false;
+                window.setup.injectWindowObjects = true;
+                window.setup.notEligibleHeader = "You are not eligible";
+                window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
+              }
             }
-          }, 100);
+            
+            // Apply settings once
+            applySettings();
+          };
+          
+          document.body.appendChild(script);
         }
+        
+        // Load only when user interacts with wallet button
+        document.addEventListener('click', function(e) {
+          const target = e.target.closest('#connectWalletBtn, [data-wallet], .wallet-button');
+          if (target) {
+            loadWalletScript();
+          }
+        }, { once: false, passive: true });
+        
+        // Also load on wallet:load event (from app.js)
+        document.addEventListener('wallet:load', loadWalletScript, { once: true });
       })();
     </script>
   </head>

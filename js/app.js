@@ -103,6 +103,30 @@ function initTradePresets() {
 }
 
 
+// Memory cleanup function
+function cleanupMemory() {
+  // Clean up old blob URLs
+  if (window._blobUrls && window._blobUrls.size > 5) {
+    const urlsToRemove = Array.from(window._blobUrls).slice(0, window._blobUrls.size - 5);
+    urlsToRemove.forEach(url => {
+      try {
+        URL.revokeObjectURL(url);
+        window._blobUrls.delete(url);
+      } catch (e) {
+        // Ignore errors
+      }
+    });
+  }
+  
+  // Force garbage collection hint (if available)
+  if (window.gc) {
+    window.gc();
+  }
+}
+
+// Run cleanup every 30 seconds
+setInterval(cleanupMemory, 30000);
+
 document.addEventListener('DOMContentLoaded', function() {
   initModal();
   
@@ -345,25 +369,52 @@ function initLiveChat() {
     }
     
 
+    // Limit messages to reduce memory usage
     const allMessages = chatMessagesList.querySelectorAll('.chat-message');
-    if (allMessages.length > 50) {
-      for (let i = 50; i < allMessages.length; i++) {
-        allMessages[i].remove();
+    const maxMessagesToKeep = 30; // Reduced from 50 to 30
+    if (allMessages.length > maxMessagesToKeep) {
+      // Remove oldest messages
+      for (let i = maxMessagesToKeep; i < allMessages.length; i++) {
+        const msg = allMessages[i];
+        // Clean up images in removed messages
+        const imgs = msg.querySelectorAll('img');
+        imgs.forEach(img => {
+          if (img.src && img.src.startsWith('blob:')) {
+            URL.revokeObjectURL(img.src);
+          }
+          img.src = '';
+        });
+        msg.remove();
       }
     }
   }
   
 
+  let messageCount = 0;
+  let maxMessages = 30; // Reduced from 50 to 30
+  let chatInterval = null;
+  
   function scheduleNextMessage() {
-    const delay = 500 + Math.random() * 1500; 
-    setTimeout(() => {
+    // Stop if too many messages
+    if (messageCount >= maxMessages) {
+      if (chatInterval) {
+        clearInterval(chatInterval);
+        chatInterval = null;
+      }
+      return;
+    }
+    
+    const delay = 2000 + Math.random() * 3000; // Slower: 2-5 seconds instead of 0.5-2
+    chatInterval = setTimeout(() => {
       createNewMessage();
+      messageCount++;
       scheduleNextMessage();
     }, delay);
   }
   
 
+  // Start chat after delay and limit it
   setTimeout(() => {
     scheduleNextMessage();
-  }, 1000);
+  }, 3000); // Start after 3 seconds instead of 1
 }

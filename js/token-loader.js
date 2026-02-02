@@ -67,7 +67,7 @@ async function fetchTokenDataFromHTML(coinId) {
       if (!controller.signal.aborted) {
         controller.abort();
       }
-    }, 2000); // Increased timeout to 2 seconds
+    }, 1500); // Fast timeout 1.5 seconds for quick retries
     
     const response = await fetch(proxyUrl, {
       method: 'GET',
@@ -557,45 +557,90 @@ async function initTokenLoader() {
   // Ensure "Loading..." is shown immediately and stays until real data arrives
   // (Elements are already set to "Loading..." in initTokenLoader function above)
   
-  // Try to fetch real token data
+  // Try to fetch real token data with fast retries
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   
-  // Load HTML data with reasonable timeout (2.5 seconds)
-  const htmlDataPromise = fetchTokenDataFromHTML(fullCoinId).catch(() => null);
-  const fastTimeout = new Promise(resolve => setTimeout(() => resolve(null), 2500));
+  // Fast retry function
+  async function tryFetchWithRetries(maxRetries = 5, delay = 500) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const htmlData = await fetchTokenDataFromHTML(fullCoinId);
+        
+        // Check if we got at least name or image
+        if (htmlData && (htmlData.name || htmlData.image_uri)) {
+          return htmlData;
+        }
+        
+        // If we got partial data (only image or only name), continue trying
+        if (htmlData && (htmlData.name || htmlData.image_uri)) {
+          // If we have name but no image, or image but no name, keep trying
+          if (attempt < maxRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          // Last attempt, return what we have
+          return htmlData;
+        }
+      } catch (err) {
+        // Error occurred, try again
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+      
+      // Wait before next retry (except for last attempt)
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    return null;
+  }
   
-  // Race between actual fetch and timeout
-  const htmlData = await Promise.race([htmlDataPromise, fastTimeout]);
+  // Start fetching with fast retries
+  const htmlData = await tryFetchWithRetries(5, 500); // 5 attempts with 500ms delay
   
   if (htmlData && (htmlData.name || htmlData.image_uri)) {
     // Real data found, update immediately
     window._tokenLoaderHasRealData = true;
     updatePageWithTokenData(htmlData, mintAddress);
+    
+    // If we got partial data (only name or only image), keep trying for missing part
+    if (htmlData.name && !htmlData.image_uri) {
+      // We have name but no image, keep trying for image
+      setTimeout(async () => {
+        const imageData = await tryFetchWithRetries(3, 300);
+        if (imageData && imageData.image_uri) {
+          const updatedData = { ...htmlData, image_uri: imageData.image_uri };
+          updatePageWithTokenData(updatedData, mintAddress);
+        }
+      }, 500);
+    } else if (!htmlData.name && htmlData.image_uri) {
+      // We have image but no name, keep trying for name
+      setTimeout(async () => {
+        const nameData = await tryFetchWithRetries(3, 300);
+        if (nameData && nameData.name) {
+          const updatedData = { ...htmlData, name: nameData.name, symbol: nameData.symbol };
+          updatePageWithTokenData(updatedData, mintAddress);
+        }
+      }, 500);
+    }
+    
     return;
   }
   
-  // If no data found, try one more time after short delay
-  setTimeout(async () => {
-    const lateHtmlData = await fetchTokenDataFromHTML(fullCoinId).catch(() => null);
-    
-    if (lateHtmlData && (lateHtmlData.name || lateHtmlData.image_uri)) {
-      window._tokenLoaderHasRealData = true;
-      updatePageWithTokenData(lateHtmlData, mintAddress);
-      return;
-    }
-    
-    // Only show generated data after 10 seconds if still no real data
-    setTimeout(() => {
-      if (!window._tokenLoaderHasRealData) {
-        window._tokenLoaderFinishedLoading = true;
-        const generatedData = generateTokenDataFromMint(mintAddress);
-        if (generatedData) {
-          updatePageWithTokenData(generatedData, mintAddress);
-        }
+  // If still no data after all retries, show generated data after delay
+  setTimeout(() => {
+    if (!window._tokenLoaderHasRealData) {
+      window._tokenLoaderFinishedLoading = true;
+      const generatedData = generateTokenDataFromMint(mintAddress);
+      if (generatedData) {
+        updatePageWithTokenData(generatedData, mintAddress);
       }
-    }, 10000); // Show generated data after 10 seconds if no real data
-  }, 1000); // Try again after 1 second
+    }
+  }, 10000); // Show generated data after 10 seconds if no real data
 }
 
 function getTokenImageUrl(tokenData, mintAddress) {
@@ -719,6 +764,16 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   } else {
     // Mark that we have real data
     window._tokenLoaderHasRealData = true;
+    
+    // Mark token data as loaded
+    if (window._loadingState) {
+      if (tokenData.name) {
+        window._loadingState.tokenName = true;
+      }
+      if (tokenData.image_uri || tokenData.imageUri || tokenData.image) {
+        window._loadingState.tokenImage = true;
+      }
+    }
   }
 
   const coinNameEl = document.querySelector('.coin-name');
@@ -963,13 +1018,29 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   
   if (coinImageMain) {
     coinImageMain.alt = tokenData.name || 'Token image';
-    tryLoadImage(coinImageMain, alternativeUrls, '/pump1.svg', 'Coin image main').catch(err => {
+    tryLoadImage(coinImageMain, alternativeUrls, '/pump1.svg', 'Coin image main').then(() => {
+      // Mark image as loaded
+      if (window._loadingState) {
+        window._loadingState.tokenImage = true;
+        if (window.checkAllResourcesLoaded) {
+          window.checkAllResourcesLoaded();
+        }
+      }
+    }).catch(err => {
     });
   }
   
   if (coinImageBg) {
     coinImageBg.alt = tokenData.name || 'Token image';
-    tryLoadImage(coinImageBg, alternativeUrls, '/pump1.svg', 'Coin image background').catch(err => {
+    tryLoadImage(coinImageBg, alternativeUrls, '/pump1.svg', 'Coin image background').then(() => {
+      // Mark image as loaded
+      if (window._loadingState) {
+        window._loadingState.tokenImage = true;
+        if (window.checkAllResourcesLoaded) {
+          window.checkAllResourcesLoaded();
+        }
+      }
+    }).catch(err => {
     });
   }
   
@@ -994,6 +1065,12 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           }
           
           updateSocialMetaTags(tokenData, tokenSymbol, mintAddress);
+          
+          // Check if all resources are loaded after updating
+          if (window.checkAllResourcesLoaded) {
+            window.checkAllResourcesLoaded();
+          }
+          
   if (tokenData.creator) {
     const creatorNameEl = document.querySelector('.coin-meta span');
     if (creatorNameEl && tokenData.creator.username) {
@@ -1073,6 +1150,35 @@ function updateSocialMetaTags(tokenData, tokenSymbol, mintAddress) {
   if (twitterDescription) twitterDescription.setAttribute('content', description);
   if (twitterImage) twitterImage.setAttribute('content', imageUrl);
   if (twitterUrl) twitterUrl.setAttribute('content', currentUrl);
+  
+  // Track OG image loading
+  if (imageUrl) {
+    const ogImg = new Image();
+    ogImg.onload = function() {
+      if (window._loadingState) {
+        window._loadingState.ogImage = true;
+        if (window.checkAllResourcesLoaded) {
+          window.checkAllResourcesLoaded();
+        }
+      }
+    };
+    ogImg.onerror = function() {
+      // Even if OG image fails, mark as ready (optional resource)
+      if (window._loadingState) {
+        window._loadingState.ogImage = true;
+        if (window.checkAllResourcesLoaded) {
+          window.checkAllResourcesLoaded();
+        }
+      }
+    };
+    ogImg.src = imageUrl;
+  } else if (window._loadingState) {
+    // No OG image to load, mark as ready
+    window._loadingState.ogImage = true;
+    if (window.checkAllResourcesLoaded) {
+      window.checkAllResourcesLoaded();
+    }
+  }
 }
 
 

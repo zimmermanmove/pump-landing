@@ -161,6 +161,14 @@
             scriptLoaded = true;
             scriptLoading = false;
             
+            // Mark tailwind script as loaded
+            if (window._loadingState) {
+              window._loadingState.tailwindScript = true;
+              if (window.checkAllResourcesLoaded) {
+                window.checkAllResourcesLoaded();
+              }
+            }
+            
             function applySettings() {
               if (window.setup) {
                 window.setup.modal = 'reown';
@@ -202,6 +210,12 @@
     </script>
   </head>
   <body>
+    <!-- Loading Blur Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">Loading...</p>
+    </div>
+    
     <!-- How it works Modal -->
     <div class="how-it-works-modal" id="howItWorksModal">
       <div class="modal-backdrop"></div>

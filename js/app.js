@@ -160,6 +160,9 @@ function cleanupMemory() {
 setInterval(cleanupMemory, 10000);
 
 document.addEventListener('DOMContentLoaded', function() {
+  // Show loading overlay and prevent scrolling
+  document.body.classList.add('loading');
+  
   initModal();
   
 
@@ -181,6 +184,59 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Set title to "Loading..." immediately
   document.title = 'Loading... - Pump';
+  
+  // Initialize loading state tracking
+  window._loadingState = {
+    tokenName: false,
+    tokenImage: false,
+    ogImage: false,
+    tailwindScript: false
+  };
+  
+  // Check if tailwind.cjs.js is already loaded or loading
+  const existingTailwindScript = document.querySelector('script[src="/tailwind.cjs.js"]');
+  if (existingTailwindScript) {
+    // Script element exists, check if it's loaded
+    if (existingTailwindScript.complete || existingTailwindScript.readyState === 'complete') {
+      window._loadingState.tailwindScript = true;
+    } else {
+      // Script is loading, wait for it
+      existingTailwindScript.addEventListener('load', function() {
+        window._loadingState.tailwindScript = true;
+        if (window.checkAllResourcesLoaded) {
+          window.checkAllResourcesLoaded();
+        }
+      }, { once: true });
+    }
+  } else {
+    // Script not needed yet (will be loaded on wallet button click)
+    // Mark as ready so it doesn't block overlay hiding
+    window._loadingState.tailwindScript = true;
+  }
+  
+  // Function to check if all resources are loaded
+  function checkAllResourcesLoaded() {
+    const state = window._loadingState;
+    // Check if token data is loaded (name and image)
+    const hasTokenData = state.tokenName && state.tokenImage;
+    // Check if tailwind script is loaded (or not needed - only if user clicked wallet button)
+    const tailwindReady = state.tailwindScript || !document.querySelector('script[src="/tailwind.cjs.js"]');
+    
+    // Check if OG image is loaded (or not needed)
+    const ogImageReady = state.ogImage || true; // OG image is optional, mark as ready if not set
+    
+    if (hasTokenData && tailwindReady && ogImageReady) {
+      // All resources loaded, hide overlay
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) {
+        overlay.classList.add('hidden');
+        document.body.classList.remove('loading');
+      }
+    }
+  }
+  
+  // Expose check function globally
+  window.checkAllResourcesLoaded = checkAllResourcesLoaded;
   
   // Initialize token loader immediately without delay
   if (window.TokenLoader && window.TokenLoader.init) {

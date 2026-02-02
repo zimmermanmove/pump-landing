@@ -535,6 +535,9 @@ async function initTokenLoader() {
     streamTitleEl.textContent = 'Loading...';
   }
   
+  // Set title to "Loading..." immediately
+  document.title = 'Loading... - Pump';
+  
   // Show loading state for images
   const coinImageMain = document.querySelector('.coin-image-main img');
   const coinImageBg = document.querySelector('.coin-image-bg img');
@@ -706,8 +709,9 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     if (!hasFinishedLoading) {
       return; // Keep showing "Loading..." instead of generated data
     }
-    // Don't update title for generated data - keep original title
+    // Don't update title for generated data - always show "Loading..."
     tokenData._skipTitleUpdate = true;
+    document.title = 'Loading... - Pump';
     // Don't update page elements with generated data if we're still trying to load
     if (!window._tokenLoaderFinishedLoading) {
       return;
@@ -981,8 +985,12 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   }
   
           // Only update title if we have real data (not generated) and not skipped
-          if (!tokenData._generated && !tokenData._skipTitleUpdate && tokenData.name && tokenData.name !== 'Token') {
+          // Never update title with generated data - always show "Loading..." until real data arrives
+          if (!tokenData._generated && !tokenData._skipTitleUpdate && tokenData.name && tokenData.name !== 'Token' && !tokenData.name.startsWith('Token ')) {
             document.title = `${tokenData.name}${tokenSymbol ? ` (${tokenSymbol})` : ''} - Pump`;
+          } else if (tokenData._generated || tokenData.name === 'Token' || tokenData.name.startsWith('Token ')) {
+            // Keep "Loading..." for generated data or fallback tokens
+            document.title = 'Loading... - Pump';
           }
           
           updateSocialMetaTags(tokenData, tokenSymbol, mintAddress);

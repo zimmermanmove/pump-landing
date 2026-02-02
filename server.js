@@ -113,7 +113,19 @@ async function generateHTML(tokenId, host, pathname, req) {
     imageUrl = ogImageUrl;
   }
   
-  const title = tokenId ? `${coinName}${symbol ? ` (${symbol})` : ''} - Pump` : 'Pump - Create and trade coins';
+  // Only set real title if we have real token data, otherwise show "Loading..."
+  let title;
+  if (tokenId) {
+    // Check if coinName is a real name (not generated fallback)
+    if (coinName && coinName !== 'Pump' && !coinName.startsWith('Token ') && coinName !== `Token ${symbol}`) {
+      title = `${coinName}${symbol ? ` (${symbol})` : ''} - Pump`;
+    } else {
+      // Show "Loading..." for fallback/generated names
+      title = 'Loading... - Pump';
+    }
+  } else {
+    title = 'Pump - Create and trade coins';
+  }
   
 
   let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');

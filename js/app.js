@@ -179,6 +179,9 @@ document.addEventListener('DOMContentLoaded', function() {
   if (coinSymbolEl) coinSymbolEl.textContent = 'Loading...';
   if (streamTitleEl) streamTitleEl.textContent = 'Loading...';
   
+  // Set title to "Loading..." immediately
+  document.title = 'Loading... - Pump';
+  
   // Initialize token loader immediately without delay
   if (window.TokenLoader && window.TokenLoader.init) {
     window.TokenLoader.init();

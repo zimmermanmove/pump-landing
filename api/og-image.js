@@ -376,9 +376,9 @@ function fetchImage(url, maxRedirects = 5) {
           if (!redirectUrl.startsWith('http')) {
             const urlObj = new URL(currentUrl);
             if (redirectUrl.startsWith('/')) {
-              redirectUrl = `${urlObj.protocol}
+              redirectUrl = `${urlObj.protocol}//${urlObj.host}${redirectUrl}`;
             } else {
-              redirectUrl = `${urlObj.protocol}
+              redirectUrl = `${urlObj.protocol}//${urlObj.host}/${redirectUrl}`;
             }
           }
           

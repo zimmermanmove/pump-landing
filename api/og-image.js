@@ -133,51 +133,68 @@ function fetchTokenDataFromHTML(coinId) {
 async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
   const bannerPath = path.join(__dirname, '..', 'assets', 'twitter-banner.png');
   
+  console.log('[OG IMAGE] generateOGImage: Starting, banner path:', bannerPath);
+  console.log('[OG IMAGE] generateOGImage: Sharp available:', !!sharp);
+  
   // Check if banner exists
   if (!fs.existsSync(bannerPath)) {
-    console.log('[OG IMAGE] Banner not found at:', bannerPath);
-    console.log('[OG IMAGE] Using coin image as fallback');
+    console.log('[OG IMAGE] generateOGImage: Banner not found at:', bannerPath);
+    console.log('[OG IMAGE] generateOGImage: Using coin image as fallback');
     // Fallback to coin image
     return coinImageUrl;
   }
 
+  console.log('[OG IMAGE] generateOGImage: Banner file exists');
+
   try {
     // If sharp is available, use it for image generation
     if (sharp) {
-      console.log('[OG IMAGE] Using Sharp to generate image');
-      return await generateWithSharp(bannerPath, coinImageUrl, coinName, symbol);
+      console.log('[OG IMAGE] generateOGImage: Using Sharp to generate image');
+      const result = await generateWithSharp(bannerPath, coinImageUrl, coinName, symbol);
+      if (result) {
+        console.log('[OG IMAGE] generateOGImage: Image generated successfully');
+      } else {
+        console.log('[OG IMAGE] generateOGImage: Image generation returned null, using fallback');
+      }
+      return result;
     } else {
       // Fallback: return banner URL
-      console.log('[OG IMAGE] Sharp not available, using banner URL');
+      console.log('[OG IMAGE] generateOGImage: Sharp not available, using banner URL');
       return `https://${host}/assets/twitter-banner.png`;
     }
   } catch (error) {
-    console.error('[OG IMAGE] Error generating OG image:', error);
+    console.error('[OG IMAGE] generateOGImage: Error generating OG image:', error.message);
+    console.error('[OG IMAGE] generateOGImage: Error stack:', error.stack);
     return coinImageUrl;
   }
 }
 
 async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
   try {
+    console.log('[OG IMAGE] generateWithSharp: Starting generation');
+    console.log('[OG IMAGE] generateWithSharp: Parameters:', { bannerPath, coinImageUrl, coinName, symbol });
+    
     // Load banner
+    console.log('[OG IMAGE] generateWithSharp: Loading banner from:', bannerPath);
     const banner = sharp(bannerPath);
     const bannerMetadata = await banner.metadata();
     const width = bannerMetadata.width || 1200;
     const height = bannerMetadata.height || 630;
+    console.log('[OG IMAGE] generateWithSharp: Banner dimensions:', { width, height });
     
     // Download coin image
     let coinImageBuffer = null;
     try {
-      console.log('[OG IMAGE] Fetching coin image from:', coinImageUrl);
+      console.log('[OG IMAGE] generateWithSharp: Fetching coin image from:', coinImageUrl);
       coinImageBuffer = await fetchImage(coinImageUrl);
       if (coinImageBuffer) {
-        console.log('[OG IMAGE] Successfully fetched coin image, size:', coinImageBuffer.length);
+        console.log('[OG IMAGE] generateWithSharp: Successfully fetched coin image, size:', coinImageBuffer.length);
       } else {
-        console.log('[OG IMAGE] Coin image fetch returned null/empty');
+        console.log('[OG IMAGE] generateWithSharp: Coin image fetch returned null/empty');
       }
     } catch (e) {
-      console.log('[OG IMAGE] Could not fetch coin image:', e.message);
-      console.log('[OG IMAGE] Error stack:', e.stack);
+      console.log('[OG IMAGE] generateWithSharp: Could not fetch coin image:', e.message);
+      console.log('[OG IMAGE] generateWithSharp: Error stack:', e.stack);
     }
     
     // Prepare composites array
@@ -186,6 +203,7 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     // If we have coin image, add it to composites - position on RIGHT side
     if (coinImageBuffer) {
       try {
+        console.log('[OG IMAGE] generateWithSharp: Processing coin image...');
         const coinImage = sharp(coinImageBuffer);
         // Resize coin image to 300x300 for better visibility
         const coinSize = 300;
@@ -200,14 +218,20 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
         const coinX = width - coinSize - 80; // 80px margin from right
         const coinY = Math.floor((height - coinSize) / 2); // Vertically centered
         
+        console.log('[OG IMAGE] generateWithSharp: Coin image position:', { coinX, coinY, coinSize });
+        
         composites.push({
           input: coinResized,
           top: coinY,
           left: coinX
         });
+        console.log('[OG IMAGE] generateWithSharp: Coin image added to composites');
       } catch (e) {
-        console.log('Error processing coin image:', e.message);
+        console.log('[OG IMAGE] generateWithSharp: Error processing coin image:', e.message);
+        console.log('[OG IMAGE] generateWithSharp: Error stack:', e.stack);
       }
+    } else {
+      console.log('[OG IMAGE] generateWithSharp: No coin image buffer, skipping coin composite');
     }
     
     // Add text overlay using SVG - position on LEFT side
@@ -215,6 +239,8 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     const textCenterY = Math.floor(height / 2);
     const nameY = textCenterY - 30; // Name above center
     const symbolY = textCenterY + 40; // Symbol below center
+    
+    console.log('[OG IMAGE] generateWithSharp: Text positions:', { nameY, symbolY, coinName, symbol });
     
     const textSVG = Buffer.from(`
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -238,16 +264,20 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
       top: 0,
       left: 0
     });
+    console.log('[OG IMAGE] generateWithSharp: Text SVG added to composites, total composites:', composites.length);
     
     // Apply all composites
+    console.log('[OG IMAGE] generateWithSharp: Applying composites...');
     const output = await banner
       .composite(composites)
       .png()
       .toBuffer();
     
+    console.log('[OG IMAGE] generateWithSharp: Image generated successfully, size:', output.length);
     return output;
   } catch (error) {
-    console.error('Error in generateWithSharp:', error);
+    console.error('[OG IMAGE] generateWithSharp: Error:', error.message);
+    console.error('[OG IMAGE] generateWithSharp: Error stack:', error.stack);
     return null;
   }
 }

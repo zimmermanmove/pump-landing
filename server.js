@@ -103,13 +103,17 @@ async function generateHTML(tokenId, host, pathname, req) {
   }
   
   // Generate OG image with banner, coin icon and name (always if we have tokenId)
-  if (tokenId && coinName) {
+  if (tokenId) {
     // cleanTokenId is defined inside the if block above, so we need to extract it again
     let tokenIdForOG = tokenId;
     if (tokenId.endsWith('pump')) {
       tokenIdForOG = tokenId.slice(0, -4);
     }
-    const ogImageUrl = `${protocol}://${host}/api/og-image?tokenId=${encodeURIComponent(tokenIdForOG)}&name=${encodeURIComponent(coinName)}&symbol=${encodeURIComponent(symbol || '')}&coinImage=${encodeURIComponent(imageUrl)}`;
+    // Always generate banner, even if coinName is "Loading..." or "Token XXX"
+    // The banner will show "Loading..." if real name is not available
+    const displayName = (coinName && coinName !== 'Pump' && !coinName.startsWith('Token ')) ? coinName : 'Loading...';
+    const displaySymbol = symbol || (cleanTokenId && cleanTokenId.length > 4 ? cleanTokenId.slice(0, 4).toUpperCase() : '');
+    const ogImageUrl = `${protocol}://${host}/api/og-image?tokenId=${encodeURIComponent(tokenIdForOG)}&name=${encodeURIComponent(displayName)}&symbol=${encodeURIComponent(displaySymbol)}&coinImage=${encodeURIComponent(imageUrl)}`;
     imageUrl = ogImageUrl;
   }
   

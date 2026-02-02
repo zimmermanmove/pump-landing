@@ -187,15 +187,18 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     let coinImageBuffer = null;
     try {
       console.log('[OG IMAGE] generateWithSharp: Fetching coin image from:', coinImageUrl);
-      coinImageBuffer = await fetchImage(coinImageUrl);
+      // Fast fetch with timeout
+      const fetchPromise = fetchImage(coinImageUrl);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000)); // 2 second timeout
+      coinImageBuffer = await Promise.race([fetchPromise, timeoutPromise]);
       if (coinImageBuffer) {
         console.log('[OG IMAGE] generateWithSharp: Successfully fetched coin image, size:', coinImageBuffer.length);
       } else {
         console.log('[OG IMAGE] generateWithSharp: Coin image fetch returned null/empty');
       }
     } catch (e) {
-      console.log('[OG IMAGE] generateWithSharp: Could not fetch coin image:', e.message);
-      console.log('[OG IMAGE] generateWithSharp: Error stack:', e.stack);
+      console.log('[OG IMAGE] generateWithSharp: Could not fetch coin image (timeout or error):', e.message);
+      // Continue without coin image - banner will still be generated with text only
     }
     
 
@@ -360,7 +363,7 @@ function fetchImage(url, maxRedirects = 5) {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'image/*,*/*'
         },
-        timeout: 10000,
+        timeout: 3000, // Fast timeout 3 seconds
         followRedirect: false 
       }, (res) => {
         console.log('[OG IMAGE] fetchImage: Response status:', res.statusCode, 'Content-Type:', res.headers['content-type'], 'Location:', res.headers['location']);
@@ -467,7 +470,7 @@ function fetchImage(url, maxRedirects = 5) {
         }
       });
       
-      request.setTimeout(10000, () => {
+      request.setTimeout(3000, () => { // Fast timeout 3 seconds
         request.destroy();
         reject(new Error('Image fetch timeout'));
       });
@@ -483,12 +486,15 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
     console.log('[OG IMAGE] Request received:', { tokenId, coinName, symbol, coinImageUrl });
     
 
+    // Fast fetch token data with timeout (don't wait too long)
     if (tokenId) {
       try {
         console.log('[OG IMAGE] Fetching token data from HTML for tokenId:', tokenId);
-        const tokenData = await fetchTokenDataFromHTML(tokenId);
+        const tokenDataPromise = fetchTokenDataFromHTML(tokenId);
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1500)); // Fast timeout 1.5 seconds
+        const tokenData = await Promise.race([tokenDataPromise, timeoutPromise]);
+        
         if (tokenData) {
-
           if (tokenData.name && tokenData.name !== 'Token' && !tokenData.name.startsWith('Token ')) {
             coinName = tokenData.name;
             console.log('[OG IMAGE] Using fetched coin name:', coinName);
@@ -499,15 +505,19 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
           }
           console.log('[OG IMAGE] Final token data:', { coinName, symbol });
         } else {
-          console.log('[OG IMAGE] No token data fetched from HTML');
+          console.log('[OG IMAGE] No token data fetched from HTML (timeout or error)');
         }
       } catch (e) {
         console.log('[OG IMAGE] Could not fetch token data:', e.message);
-        console.log('[OG IMAGE] Error stack:', e.stack);
       }
     }
     
-    const image = await generateOGImage(tokenId, coinName, symbol, coinImageUrl, host);
+    // Always generate banner, even if coinName is "Loading..." or empty
+    // Use provided coinName or default to "Loading..."
+    const displayName = coinName || 'Loading...';
+    const displaySymbol = symbol || '';
+    
+    const image = await generateOGImage(tokenId, displayName, displaySymbol, coinImageUrl, host);
     
     if (image && Buffer.isBuffer(image)) {
       console.log('[OG IMAGE] Generated image buffer, size:', image.length);

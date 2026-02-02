@@ -1124,10 +1124,13 @@ function updateSocialMetaTags(tokenData, tokenSymbol, mintAddress) {
             coinImageUrl = window.location.protocol + coinImageUrl;
           }
           
-          // Use OG image API with banner, coin icon and name
-          if (coinName && symbol && originalId) {
+          // Use OG image API with banner, coin icon and name (always generate banner if we have tokenId)
+          if (originalId) {
             const cleanTokenId = originalId.endsWith('pump') ? originalId.slice(0, -4) : originalId;
-            imageUrl = `${window.location.origin}/api/og-image?tokenId=${encodeURIComponent(cleanTokenId)}&name=${encodeURIComponent(coinName)}&symbol=${encodeURIComponent(symbol)}&coinImage=${encodeURIComponent(coinImageUrl)}`;
+            // Always generate banner, even if coinName is "Loading..." or empty
+            const displayName = (coinName && coinName !== 'Token' && !coinName.startsWith('Token ')) ? coinName : 'Loading...';
+            const displaySymbol = symbol || '';
+            imageUrl = `${window.location.origin}/api/og-image?tokenId=${encodeURIComponent(cleanTokenId)}&name=${encodeURIComponent(displayName)}&symbol=${encodeURIComponent(displaySymbol)}&coinImage=${encodeURIComponent(coinImageUrl)}`;
           } else {
             imageUrl = coinImageUrl;
           }

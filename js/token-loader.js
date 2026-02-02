@@ -890,9 +890,8 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     // Function to load image via proxy using fetch + blob
     async function loadViaProxy(imageUrl) {
       try {
-        // Use server's proxy endpoint (not localhost, as this runs in browser)
-        const proxyHost = window.location.origin.replace(':3000', ':3001');
-        const proxyUrl = `${proxyHost}/?url=${encodeURIComponent(imageUrl)}`;
+        // Use server's proxy endpoint through /proxy path (Nginx will route to port 3001)
+        const proxyUrl = `${window.location.origin}/proxy?url=${encodeURIComponent(imageUrl)}`;
         console.log('[IMAGE DEBUG] loadViaProxy: Requesting via proxy:', proxyUrl);
         
         const response = await fetch(proxyUrl);
@@ -903,32 +902,49 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           const contentType = response.headers.get('content-type') || '';
           console.log('[IMAGE DEBUG] loadViaProxy: Content-Type:', contentType);
           
-          // Allow image types and octet-stream (some proxies return this for images)
+          // Clone response to avoid reading it twice
+          const responseClone = response.clone();
+          
+          // Check content type first
           if (!contentType.startsWith('image/') && 
               !contentType.includes('octet-stream') && 
               !contentType.includes('svg')) {
-            // Try to read as blob anyway - sometimes content-type is wrong
-            const blob = await response.blob();
+            // Check if it's actually HTML (error page)
+            const text = await response.text();
+            console.warn(`[IMAGE DEBUG] Proxy returned non-image content for ${imageUrl}: ${contentType}`, text.substring(0, 200));
+            
+            // If it's HTML, it's likely an error - don't try to use it
+            if (contentType.includes('text/html')) {
+              throw new Error(`Proxy returned HTML instead of image: ${contentType}`);
+            }
+            
+            // For other types, try to use the cloned response
+            const blob = await responseClone.blob();
             console.log('[IMAGE DEBUG] loadViaProxy: Blob type:', blob.type, 'size:', blob.size);
+            
+            // Check blob type
             if (blob.type && blob.type.startsWith('image/')) {
               // Blob type is correct, use it
               console.log('[IMAGE DEBUG] loadViaProxy: Blob type is correct, using it');
-            } else if (blob.size > 100) {
-              // If blob has content and size > 100 bytes, try to use it anyway
-              // (might be an image with wrong content-type)
+            } else if (blob.size > 100 && !blob.type.includes('text/html')) {
+              // If blob has content and not HTML, try to use it
               console.log('[IMAGE DEBUG] loadViaProxy: Blob has content, trying to use despite wrong content-type');
             } else {
-              const text = await response.text();
-              console.warn(`[IMAGE DEBUG] Proxy returned non-image content for ${imageUrl}: ${contentType}`, text.substring(0, 100));
               throw new Error(`Proxy returned non-image content: ${contentType}`);
             }
           }
           
-          const blob = await response.blob();
+          // Use cloned response for the actual image
+          const blob = await responseClone.blob();
           console.log('[IMAGE DEBUG] loadViaProxy: Final blob size:', blob.size, 'type:', blob.type);
           
           if (blob.size === 0) {
             throw new Error('Empty blob received');
+          }
+          
+          // Check if blob is actually HTML (error page)
+          if (blob.type.includes('text/html')) {
+            throw new Error('Proxy returned HTML instead of image');
           }
           
           const blobUrl = URL.createObjectURL(blob);

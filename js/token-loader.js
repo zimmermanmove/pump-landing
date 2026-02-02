@@ -3,7 +3,7 @@ function getTokenMintFromURL() {
   let mint = urlParams.get('mint') || urlParams.get('token') || urlParams.get('address');
   
   if (!mint && window.location.hash) {
-    const hashPath = window.location.hash.replace('#', '').replace(/^\
+    const hashPath = window.location.hash.replace('#', '').replace(/^\/+/, '');
     const hashParts = hashPath.split('/').filter(p => p);
     
     const liveIndex = hashParts.indexOf('live');

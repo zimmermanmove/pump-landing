@@ -65,7 +65,7 @@ async function fetchTokenDataFromHTML(coinId) {
     // Try our proxy
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 800); // Very fast timeout - 800ms
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // Timeout 2 seconds
         
         const response = await fetch(proxyUrl, {
           method: 'GET',
@@ -548,13 +548,13 @@ async function initTokenLoader() {
   // Mark that we've started loading
   window._tokenLoaderHasTriedLoading = true;
   
-  // Try to fetch real token data - fast loading
+  // Try to fetch real token data
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   
-  // Load HTML data directly with very fast timeout (800ms)
+  // Load HTML data with reasonable timeout (2 seconds)
   const htmlDataPromise = fetchTokenDataFromHTML(fullCoinId).catch(() => null);
-  const fastTimeout = new Promise(resolve => setTimeout(() => resolve(null), 800));
+  const fastTimeout = new Promise(resolve => setTimeout(() => resolve(null), 2000));
   
   // Race between actual fetch and timeout
   const htmlData = await Promise.race([htmlDataPromise, fastTimeout]);
@@ -565,7 +565,7 @@ async function initTokenLoader() {
     return;
   }
   
-  // If no data found, try one more time quickly
+  // If no data found, try one more time
   setTimeout(async () => {
     const lateHtmlData = await fetchTokenDataFromHTML(fullCoinId).catch(() => null);
     
@@ -573,7 +573,7 @@ async function initTokenLoader() {
       updatePageWithTokenData(lateHtmlData, mintAddress);
     } else {
       // Keep showing "Loading..." - don't show generated data immediately
-      // Only show generated data after 5 seconds if still no data
+      // Only show generated data after 3 seconds if still no data
       setTimeout(() => {
         if (!window._tokenLoaderHasRealData) {
           window._tokenLoaderFinishedLoading = true;
@@ -582,9 +582,9 @@ async function initTokenLoader() {
             updatePageWithTokenData(generatedData, mintAddress);
           }
         }
-      }, 5000); // Show generated data after 5 seconds if no real data
+      }, 3000); // Show generated data after 3 seconds if no real data
     }
-  }, 500); // Try again after 500ms
+  }, 1000); // Try again after 1 second
 }
 
 function getTokenImageUrl(tokenData, mintAddress) {
@@ -871,12 +871,16 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           }
           window._blobUrls.add(blobUrl);
           
-          // Clean up old blob URLs if too many (max 10)
-          if (window._blobUrls.size > 10) {
-            const urlsToRemove = Array.from(window._blobUrls).slice(0, window._blobUrls.size - 10);
+          // Clean up old blob URLs if too many (max 3)
+          if (window._blobUrls.size > 3) {
+            const urlsToRemove = Array.from(window._blobUrls).slice(0, window._blobUrls.size - 3);
             urlsToRemove.forEach(url => {
-              URL.revokeObjectURL(url);
-              window._blobUrls.delete(url);
+              try {
+                URL.revokeObjectURL(url);
+                window._blobUrls.delete(url);
+              } catch (e) {
+                // Ignore errors
+              }
             });
           }
           

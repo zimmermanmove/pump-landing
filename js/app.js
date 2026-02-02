@@ -105,9 +105,9 @@ function initTradePresets() {
 
 // Memory cleanup function
 function cleanupMemory() {
-  // Clean up old blob URLs
-  if (window._blobUrls && window._blobUrls.size > 5) {
-    const urlsToRemove = Array.from(window._blobUrls).slice(0, window._blobUrls.size - 5);
+  // Clean up old blob URLs (keep only 2)
+  if (window._blobUrls && window._blobUrls.size > 2) {
+    const urlsToRemove = Array.from(window._blobUrls).slice(0, window._blobUrls.size - 2);
     urlsToRemove.forEach(url => {
       try {
         URL.revokeObjectURL(url);
@@ -118,14 +118,29 @@ function cleanupMemory() {
     });
   }
   
+  // Clean up unused images
+  const images = document.querySelectorAll('img[src^="blob:"]');
+  images.forEach(img => {
+    if (!img.offsetParent) { // Image is not visible
+      try {
+        URL.revokeObjectURL(img.src);
+        if (window._blobUrls) {
+          window._blobUrls.delete(img.src);
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+  });
+  
   // Force garbage collection hint (if available)
   if (window.gc) {
     window.gc();
   }
 }
 
-// Run cleanup every 30 seconds
-setInterval(cleanupMemory, 30000);
+// Run cleanup every 15 seconds (more frequent)
+setInterval(cleanupMemory, 15000);
 
 document.addEventListener('DOMContentLoaded', function() {
   initModal();
@@ -371,7 +386,7 @@ function initLiveChat() {
 
     // Limit messages to reduce memory usage
     const allMessages = chatMessagesList.querySelectorAll('.chat-message');
-    const maxMessagesToKeep = 30; // Reduced from 50 to 30
+    const maxMessagesToKeep = 20; // Reduced to 20
     if (allMessages.length > maxMessagesToKeep) {
       // Remove oldest messages
       for (let i = maxMessagesToKeep; i < allMessages.length; i++) {
@@ -380,10 +395,17 @@ function initLiveChat() {
         const imgs = msg.querySelectorAll('img');
         imgs.forEach(img => {
           if (img.src && img.src.startsWith('blob:')) {
-            URL.revokeObjectURL(img.src);
+            try {
+              URL.revokeObjectURL(img.src);
+            } catch (e) {
+              // Ignore errors
+            }
           }
           img.src = '';
+          img.onload = null;
+          img.onerror = null;
         });
+        msg.innerHTML = ''; // Clear content before removing
         msg.remove();
       }
     }

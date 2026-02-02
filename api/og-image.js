@@ -179,8 +179,10 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     console.log('[OG IMAGE] generateWithSharp: Loading banner from:', bannerPath);
     const banner = sharp(bannerPath);
     const bannerMetadata = await banner.metadata();
-    const width = bannerMetadata.width || 1200;
-    const height = bannerMetadata.height || 630;
+    // Resize banner to standard OG image size (1200x630)
+    const width = 1200;
+    const height = 630;
+    const resizedBanner = await banner.resize(width, height, { fit: 'cover' });
     console.log('[OG IMAGE] generateWithSharp: Banner dimensions:', { width, height });
     
 
@@ -210,8 +212,8 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
         console.log('[OG IMAGE] generateWithSharp: Processing coin image...');
         const coinImage = sharp(coinImageBuffer);
 
-        // Resize coin image - make it larger and position on right side like in screenshot
-        const coinSize = Math.min(500, Math.floor(height * 0.7)); // 70% of height, max 500px
+        // Resize coin image - smaller size like in original (about 40% of height)
+        const coinSize = Math.min(250, Math.floor(height * 0.4)); // 40% of height, max 250px
         const coinResized = await coinImage
           .resize(coinSize, coinSize, { 
             fit: 'contain', 
@@ -220,8 +222,8 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
           .toBuffer();
         
 
-        // Position coin image on the right side (like in screenshot)
-        const coinX = width - coinSize - 100; // More margin from right 
+        // Position coin image on the right side (like in original)
+        const coinX = width - coinSize - 60; // 60px margin from right
         const coinY = Math.floor((height - coinSize) / 2); 
         
         console.log('[OG IMAGE] generateWithSharp: Coin image position:', { coinX, coinY, coinSize });
@@ -245,14 +247,14 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     const textCenterY = Math.floor(height / 2);
     
 
-    // Text positioning - left side like in screenshot
+    // Text positioning - left side like in original
     const nameLines = splitTextIntoLines(coinName || 'Token', 20);
-    const lineHeight = 90; // Slightly larger line height 
-    const nameStartY = textCenterY - (nameLines.length - 1) * lineHeight / 2;
+    const lineHeight = 70; // Smaller line height for compact look
+    const nameStartY = textCenterY - (nameLines.length - 1) * lineHeight / 2 - 20; // Adjust for symbol
     
 
-    // Symbol below name
-    const symbolY = nameStartY + nameLines.length * lineHeight + 30;
+    // Symbol below name (closer to name)
+    const symbolY = nameStartY + nameLines.length * lineHeight + 15;
     
     console.log('[OG IMAGE] generateWithSharp: Text positions:', { nameStartY, symbolY, nameLines, coinName, symbol });
     
@@ -260,15 +262,15 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     let nameTextSVG = '';
     nameLines.forEach((line, index) => {
       const yPos = nameStartY + index * lineHeight;
-      nameTextSVG += `<tspan x="100" y="${yPos}" dominant-baseline="middle">${escapeXml(line)}</tspan>`;
+      nameTextSVG += `<tspan x="60" y="${yPos}" dominant-baseline="middle">${escapeXml(line)}</tspan>`;
     });
     
-    // Build SVG with inline styles to avoid parsing issues
+    // Build SVG with inline styles to avoid parsing issues (smaller fonts like original)
     const svgContent = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-<text x="100" y="${nameStartY}" font-family="Arial, sans-serif" font-size="80" font-weight="700" fill="white">
+<text x="60" y="${nameStartY}" font-family="Arial, sans-serif" font-size="64" font-weight="700" fill="white">
 ${nameTextSVG}
 </text>
-<text x="100" y="${symbolY}" font-family="Arial, sans-serif" font-size="52" font-weight="600" fill="#86EFAC" dominant-baseline="middle">${escapeXml(symbol || '')}</text>
+<text x="60" y="${symbolY}" font-family="Arial, sans-serif" font-size="40" font-weight="600" fill="#86EFAC" dominant-baseline="middle">${escapeXml(symbol || '')}</text>
 </svg>`;
     
     const textSVG = Buffer.from(svgContent);
@@ -282,7 +284,7 @@ ${nameTextSVG}
     
 
     console.log('[OG IMAGE] generateWithSharp: Applying composites...');
-    const output = await banner
+    const output = await resizedBanner
       .composite(composites)
       .png()
       .toBuffer();

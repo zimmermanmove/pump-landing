@@ -693,6 +693,8 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     if (!hasFinishedLoading) {
       return; // Keep showing "Loading..." instead of generated data
     }
+    // Don't update title for generated data - keep original title
+    tokenData._skipTitleUpdate = true;
   } else {
     // Mark that we have real data
     window._tokenLoaderHasRealData = true;
@@ -961,8 +963,9 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     setStreamBackground(imageToUse);
   }
   
-          if (tokenData.name) {
-            document.title = `${tokenData.name} (${tokenSymbol}) - Pump`;
+          // Only update title if we have real data (not generated) and not skipped
+          if (!tokenData._generated && !tokenData._skipTitleUpdate && tokenData.name && tokenData.name !== 'Token') {
+            document.title = `${tokenData.name}${tokenSymbol ? ` (${tokenSymbol})` : ''} - Pump`;
           }
           
           updateSocialMetaTags(tokenData, tokenSymbol, mintAddress);

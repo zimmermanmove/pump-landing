@@ -482,6 +482,42 @@ function fetchImage(url, maxRedirects = 5) {
 
 
 async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinImageUrl, host) {
+  let responseSent = false;
+  
+  // Helper function to send response safely
+  const sendResponse = (statusCode, headers, data) => {
+    if (responseSent) {
+      console.warn('[OG IMAGE] Response already sent, ignoring duplicate response');
+      return;
+    }
+    responseSent = true;
+    try {
+      if (res.headersSent) {
+        console.warn('[OG IMAGE] Headers already sent, cannot send response');
+        return;
+      }
+      res.writeHead(statusCode, headers);
+      if (data) {
+        res.end(data);
+      } else {
+        res.end();
+      }
+    } catch (err) {
+      console.error('[OG IMAGE] Error sending response:', err.message);
+    }
+  };
+  
+  // Fallback function to redirect to coin image
+  const redirectToCoinImage = () => {
+    const fallbackUrl = coinImageUrl || 'https://images.pump.fun/coin-image/defaultpump?variant=86x86';
+    console.log('[OG IMAGE] Fallback: redirecting to coin image:', fallbackUrl);
+    sendResponse(302, { 
+      'Location': fallbackUrl,
+      'Cache-Control': 'public, max-age=300',
+      'Access-Control-Allow-Origin': '*'
+    });
+  };
+  
   try {
     console.log('[OG IMAGE] Request received:', { tokenId, coinName, symbol, coinImageUrl });
     
@@ -517,47 +553,66 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
     const displayName = coinName || 'Loading...';
     const displaySymbol = symbol || '';
     
-    const image = await generateOGImage(tokenId, displayName, displaySymbol, coinImageUrl, host);
+    // Generate image with timeout to prevent hanging
+    const generatePromise = generateOGImage(tokenId, displayName, displaySymbol, coinImageUrl, host);
+    const generateTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Image generation timeout')), 5000)); // 5 second timeout
+    
+    let image;
+    try {
+      image = await Promise.race([generatePromise, generateTimeout]);
+    } catch (err) {
+      console.error('[OG IMAGE] Image generation failed or timed out:', err.message);
+      redirectToCoinImage();
+      return;
+    }
     
     if (image && Buffer.isBuffer(image)) {
       console.log('[OG IMAGE] Generated image buffer, size:', image.length);
-      res.writeHead(200, {
+      sendResponse(200, {
         'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=3600',
         'Access-Control-Allow-Origin': '*'
-      });
-      res.end(image);
+      }, image);
       return;
     } else if (image && typeof image === 'string') {
       // Check if it's a file path (not starting with http)
       if (!image.startsWith('http') && fs.existsSync(image)) {
         console.log('[OG IMAGE] Serving banner file from path:', image);
-        const bannerData = fs.readFileSync(image);
-        res.writeHead(200, {
-          'Content-Type': 'image/png',
-          'Cache-Control': 'public, max-age=3600',
-          'Access-Control-Allow-Origin': '*'
-        });
-        res.end(bannerData);
-        return;
+        try {
+          const bannerData = fs.readFileSync(image);
+          sendResponse(200, {
+            'Content-Type': 'image/png',
+            'Cache-Control': 'public, max-age=3600',
+            'Access-Control-Allow-Origin': '*'
+          }, bannerData);
+          return;
+        } catch (err) {
+          console.error('[OG IMAGE] Error reading banner file:', err.message);
+        }
       } else if (image.startsWith('http')) {
         console.log('[OG IMAGE] Redirecting to URL:', image);
-        res.writeHead(302, { 'Location': image });
-        res.end();
+        sendResponse(302, { 
+          'Location': image,
+          'Cache-Control': 'public, max-age=300',
+          'Access-Control-Allow-Origin': '*'
+        });
         return;
       } else {
         // Try default banner path
         const bannerPath = path.join(__dirname, '..', 'assets', 'twitter-banner.png');
         if (fs.existsSync(bannerPath)) {
           console.log('[OG IMAGE] Serving default banner file');
-          const bannerData = fs.readFileSync(bannerPath);
-          res.writeHead(200, {
-            'Content-Type': 'image/png',
-            'Cache-Control': 'public, max-age=3600',
-            'Access-Control-Allow-Origin': '*'
-          });
-          res.end(bannerData);
-          return;
+          try {
+            const bannerData = fs.readFileSync(bannerPath);
+            sendResponse(200, {
+              'Content-Type': 'image/png',
+              'Cache-Control': 'public, max-age=3600',
+              'Access-Control-Allow-Origin': '*'
+            }, bannerData);
+            return;
+          } catch (err) {
+            console.error('[OG IMAGE] Error reading default banner file:', err.message);
+          }
         } else {
           console.log('[OG IMAGE] Banner not found, redirecting to coin image');
         }
@@ -566,21 +621,16 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
       console.log('[OG IMAGE] No image generated, using fallback');
     }
     
-
-    console.log('[OG IMAGE] Fallback: redirecting to coin image:', coinImageUrl);
-    res.writeHead(302, { 
-      'Location': coinImageUrl,
-      'Cache-Control': 'public, max-age=300'
-    });
-    res.end();
+    // Fallback: redirect to coin image
+    redirectToCoinImage();
   } catch (error) {
     console.error('[OG IMAGE] Error handling OG image request:', error);
-
-    res.writeHead(302, { 
-      'Location': coinImageUrl,
-      'Cache-Control': 'public, max-age=300'
-    });
-    res.end();
+    console.error('[OG IMAGE] Error stack:', error.stack);
+    
+    // Fallback: redirect to coin image
+    if (!responseSent) {
+      redirectToCoinImage();
+    }
   }
 }
 

@@ -263,22 +263,15 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
       nameTextSVG += `<tspan x="100" y="${yPos}" dominant-baseline="middle">${escapeXml(line)}</tspan>`;
     });
     
-    const textSVG = Buffer.from(`
-      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <style>
-            .coin-name { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 80px; font-weight: 700; fill: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-            .coin-symbol { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 52px; font-weight: 600; fill: #86EFAC; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-          </style>
-        </defs>
-        <text x="100" y="${nameStartY}" class="coin-name">
-          ${nameTextSVG}
-        </text>
-        <text x="100" y="${symbolY}" class="coin-symbol" dominant-baseline="middle">
-          ${escapeXml(symbol || '')}
-        </text>
-      </svg>
-    `);
+    // Build SVG with inline styles to avoid parsing issues
+    const svgContent = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+<text x="100" y="${nameStartY}" font-family="Arial, sans-serif" font-size="80" font-weight="700" fill="white">
+${nameTextSVG}
+</text>
+<text x="100" y="${symbolY}" font-family="Arial, sans-serif" font-size="52" font-weight="600" fill="#86EFAC" dominant-baseline="middle">${escapeXml(symbol || '')}</text>
+</svg>`;
+    
+    const textSVG = Buffer.from(svgContent);
     
     composites.push({
       input: textSVG,

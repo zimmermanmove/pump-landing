@@ -105,21 +105,22 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     // Prepare composites array
     const composites = [];
     
-    // If we have coin image, add it to composites
+    // If we have coin image, add it to composites - position on RIGHT side
     if (coinImageBuffer) {
       try {
         const coinImage = sharp(coinImageBuffer);
-        // Resize coin image to 200x200, center it horizontally, position at top
+        // Resize coin image to 300x300 for better visibility
+        const coinSize = 300;
         const coinResized = await coinImage
-          .resize(200, 200, { 
+          .resize(coinSize, coinSize, { 
             fit: 'contain', 
             background: { r: 0, g: 0, b: 0, alpha: 0 } 
           })
           .toBuffer();
         
-        // Center horizontally, position at top (adjust as needed)
-        const coinX = Math.floor((width - 200) / 2);
-        const coinY = 50;
+        // Position on RIGHT side, vertically centered
+        const coinX = width - coinSize - 80; // 80px margin from right
+        const coinY = Math.floor((height - coinSize) / 2); // Vertically centered
         
         composites.push({
           input: coinResized,
@@ -131,23 +132,24 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
       }
     }
     
-    // Add text overlay using SVG
-    // Position text in center-bottom area
-    const textY = height - 150; // Position from bottom
-    const symbolY = height - 100;
+    // Add text overlay using SVG - position on LEFT side
+    // Calculate vertical center for text
+    const textCenterY = Math.floor(height / 2);
+    const nameY = textCenterY - 30; // Name above center
+    const symbolY = textCenterY + 40; // Symbol below center
     
     const textSVG = Buffer.from(`
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <style>
-            .coin-name { font-family: Arial, sans-serif; font-size: 56px; font-weight: bold; fill: white; }
-            .coin-symbol { font-family: Arial, sans-serif; font-size: 40px; fill: #86EFAC; }
+            .coin-name { font-family: Arial, sans-serif; font-size: 72px; font-weight: bold; fill: white; }
+            .coin-symbol { font-family: Arial, sans-serif; font-size: 48px; fill: #86EFAC; }
           </style>
         </defs>
-        <text x="50%" y="${textY}" class="coin-name" text-anchor="middle" dominant-baseline="middle">
+        <text x="80" y="${nameY}" class="coin-name" dominant-baseline="middle">
           ${escapeXml(coinName || 'Token')}
         </text>
-        <text x="50%" y="${symbolY}" class="coin-symbol" text-anchor="middle" dominant-baseline="middle">
+        <text x="80" y="${symbolY}" class="coin-symbol" dominant-baseline="middle">
           ${escapeXml(symbol || '')}
         </text>
       </svg>

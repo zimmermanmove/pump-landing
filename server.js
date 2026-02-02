@@ -114,6 +114,7 @@ async function generateHTML(tokenId, host, pathname, req) {
     const displayName = (coinName && coinName !== 'Pump' && !coinName.startsWith('Token ')) ? coinName : 'Loading...';
     const displaySymbol = symbol || (cleanTokenId && cleanTokenId.length > 4 ? cleanTokenId.slice(0, 4).toUpperCase() : '');
     const ogImageUrl = `${protocol}://${host}/api/og-image?tokenId=${encodeURIComponent(tokenIdForOG)}&name=${encodeURIComponent(displayName)}&symbol=${encodeURIComponent(displaySymbol)}&coinImage=${encodeURIComponent(imageUrl)}`;
+    console.log('[SERVER] Generated OG image URL:', ogImageUrl);
     imageUrl = ogImageUrl;
   }
   

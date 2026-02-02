@@ -160,7 +160,7 @@ async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
     } else {
 
       console.log('[OG IMAGE] generateOGImage: Sharp not available, using banner file directly');
-      // Return banner file path for direct serving
+      // Return banner file path for direct serving (will be handled in handleOGImageRequest)
       return bannerPath;
     }
   } catch (error) {

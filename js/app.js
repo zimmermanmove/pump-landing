@@ -1,5 +1,8 @@
 // JavaScript for the landing page
 
+// Setup window objects for wallet connection
+window.setup = { injectWindowObjects: true };
+
 // Connect wallet function
 async function connectWallet() {
   try {

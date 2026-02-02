@@ -58,9 +58,10 @@ async function fetchTokenDataFromHTML(coinId) {
     const originalId = window._tokenOriginalId || coinId;
     const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
     
-    const targetUrl = `https:
+    const targetUrl = `https://pump.fun/coin/${fullCoinId}`;
     const proxyUrls = [
-      `https:
+      `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
     ];
     
     for (const proxyUrl of proxyUrls) {
@@ -145,7 +146,7 @@ async function fetchTokenDataFromHTML(coinId) {
 
 
           const originalId = window._tokenOriginalId || coinId;
-          imageUrl = `https:
+          imageUrl = `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`;
           
 
           const jsonLd = doc.querySelector('script[type="application/ld+json"]');
@@ -221,9 +222,9 @@ async function fetchTokenDataFromHTML(coinId) {
                   if (!foundUrl.includes('opengraph') && !foundUrl.includes('m75hzs')) {
                     imageUrl = foundUrl;
                     if (imageUrl.startsWith('/')) {
-                      imageUrl = `https:
+                      imageUrl = `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`;//pump.fun${imageUrl}`;
                     } else if (!imageUrl.startsWith('http')) {
-                      imageUrl = `https:
+                      imageUrl = `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`;//pump.fun/${imageUrl}`;
                     }
                     break;
                   }
@@ -239,9 +240,9 @@ async function fetchTokenDataFromHTML(coinId) {
                     if (!foundUrl.includes('opengraph') && !foundUrl.includes('m75hzs')) {
                       imageUrl = foundUrl;
                       if (imageUrl.startsWith('/')) {
-                        imageUrl = `https:
+                        imageUrl = `https://pump.fun${imageUrl}`;//images.pump.fun/coin-image/${originalId}pump?variant=86x86`;//pump.fun${imageUrl}`;
                       } else if (!imageUrl.startsWith('http')) {
-                        imageUrl = `https:
+                        imageUrl = `https://pump.fun${imageUrl}`;//images.pump.fun/coin-image/${originalId}pump?variant=86x86`;//pump.fun/${imageUrl}`;
                       }
                       break;
                     }
@@ -283,7 +284,7 @@ async function fetchTokenDataFromHTML(coinId) {
                 if (ipfsHash || ipfsSrc) {
 
                   const originalId = window._tokenOriginalId || coinId;
-                  let constructedUrl = `https:
+                  let constructedUrl = `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`;
                   
                   if (ipfsHash) {
                     constructedUrl += `&ipfs=${ipfsHash}`;
@@ -307,7 +308,7 @@ async function fetchTokenDataFromHTML(coinId) {
                     if (!foundImage.includes('opengraph')) {
                       imageUrl = foundImage;
                       if (imageUrl.startsWith('/')) {
-                        imageUrl = `https:
+                        imageUrl = `https://pump.fun${imageUrl}`;//images.pump.fun/coin-image/${originalId}pump?variant=86x86`;
                       }
                     }
                   }
@@ -316,7 +317,7 @@ async function fetchTokenDataFromHTML(coinId) {
                     if (!foundImage.includes('opengraph')) {
                       imageUrl = foundImage;
                       if (imageUrl.startsWith('/')) {
-                        imageUrl = `https:
+                        imageUrl = `https://pump.fun${imageUrl}`;//images.pump.fun/coin-image/${originalId}pump?variant=86x86`;//pump.fun${imageUrl}`;
                       }
                     }
                   }
@@ -386,9 +387,9 @@ async function fetchTokenMetadataFromSolana(mintAddress) {
   try {
 
     const metadataEndpoints = [
-      `https:
-      `https:
-      `https:
+      `https://api.mainnet-beta.solana.com/v1/token/${mintAddress}`,
+      `https://public-api.solscan.io/token/meta?tokenAddress=${mintAddress}`,
+      `https://api.solana.fm/v0/tokens/${mintAddress}`
     ];
     
     for (const endpoint of metadataEndpoints) {
@@ -567,7 +568,7 @@ function getTokenImageUrl(tokenData, mintAddress) {
     const originalId = window._tokenOriginalId || mintAddress;
 
 
-    const imageUrl = `https:
+    const imageUrl = `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`;
     return imageUrl;
   }
   
@@ -630,9 +631,9 @@ function generateTokenDataFromMint(mintAddress) {
   }
   
   const imagePatterns = [
-    `https:
-    `https:
-    `https:
+    `https://images.pump.fun/coin-image/${mintAddress}pump?variant=86x86`,
+    `https://images.pump.fun/coin-image/${mintAddress}pump`,
+    `https://pump.fun/coin-image/${mintAddress}pump`
   ];
   
   const streamImage = '/assets/streams/stream1.png';
@@ -693,9 +694,9 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     alternativeUrls.push(
       tokenImageUrl,
       baseUrl,
-      `https:
-      `https:
-      `https:
+      `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`,
+      `https://images.pump.fun/coin-image/${originalId}pump?variant=200x200`,
+      `https://images.pump.fun/coin-image/${originalId}pump`
     );
   } else {
     alternativeUrls.push(tokenImageUrl);
@@ -913,7 +914,7 @@ function updateSocialMetaTags(tokenData, tokenSymbol, mintAddress) {
           let imageUrl = '';
           const originalId = window._tokenOriginalId || mintAddress;
           if (originalId) {
-            imageUrl = `https:
+            imageUrl = `https://images.pump.fun/coin-image/${originalId}pump?variant=86x86`;//images.pump.fun/coin-image/${originalId}pump?variant=86x86`;
           } else {
             const origin = window.location.origin;
             imageUrl = origin + '/pump1.svg';
@@ -923,7 +924,7 @@ function updateSocialMetaTags(tokenData, tokenSymbol, mintAddress) {
             imageUrl = window.location.origin + imageUrl;
           }
           
-          if (imageUrl && imageUrl.startsWith('
+          if (imageUrl && imageUrl.startsWith('//')) {
             imageUrl = window.location.protocol + imageUrl;
           }
   const ogTitle = document.getElementById('og-title');

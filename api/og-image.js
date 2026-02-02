@@ -131,26 +131,13 @@ function fetchTokenDataFromHTML(coinId) {
 }
 
 async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
-  const bannerPath = path.join(__dirname, '..', 'assets', 'twitter-banner.png');
-  
-  console.log('[OG IMAGE] generateOGImage: Starting, banner path:', bannerPath);
+  console.log('[OG IMAGE] generateOGImage: Starting, tokenId:', tokenId);
   console.log('[OG IMAGE] generateOGImage: Sharp available:', !!sharp);
-  
-
-  if (!fs.existsSync(bannerPath)) {
-    console.log('[OG IMAGE] generateOGImage: Banner not found at:', bannerPath);
-    console.log('[OG IMAGE] generateOGImage: Using coin image as fallback');
-
-    return coinImageUrl;
-  }
-
-  console.log('[OG IMAGE] generateOGImage: Banner file exists');
 
   try {
-
     if (sharp) {
       console.log('[OG IMAGE] generateOGImage: Using Sharp to generate image');
-      const result = await generateWithSharp(bannerPath, coinImageUrl, coinName, symbol);
+      const result = await generateWithSharp(tokenId, coinImageUrl, coinName, symbol);
       if (result) {
         console.log('[OG IMAGE] generateOGImage: Image generated successfully');
       } else {
@@ -158,10 +145,8 @@ async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
       }
       return result;
     } else {
-
-      console.log('[OG IMAGE] generateOGImage: Sharp not available, using banner file directly');
-      // Return banner file path for direct serving (will be handled in handleOGImageRequest)
-      return bannerPath;
+      console.log('[OG IMAGE] generateOGImage: Sharp not available, using coin image as fallback');
+      return coinImageUrl;
     }
   } catch (error) {
     console.error('[OG IMAGE] generateOGImage: Error generating OG image:', error.message);
@@ -170,20 +155,64 @@ async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
   }
 }
 
-async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
+async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
   try {
     console.log('[OG IMAGE] generateWithSharp: Starting generation');
-    console.log('[OG IMAGE] generateWithSharp: Parameters:', { bannerPath, coinImageUrl, coinName, symbol });
+    console.log('[OG IMAGE] generateWithSharp: Parameters:', { tokenId, coinImageUrl, coinName, symbol });
     
-
-    console.log('[OG IMAGE] generateWithSharp: Loading banner from:', bannerPath);
-    const banner = sharp(bannerPath);
-    const bannerMetadata = await banner.metadata();
+    // Fetch banner from API
+    let bannerBuffer = null;
+    try {
+      const fullCoinId = tokenId && tokenId.endsWith('pump') ? tokenId : `${tokenId || ''}pump`;
+      const bannerUrl = `https://frontend-api-v3.pump.fun/coins/add-banner?coinId=${encodeURIComponent(fullCoinId)}`;
+      console.log('[OG IMAGE] generateWithSharp: Fetching banner from API:', bannerUrl);
+      
+      const fetchPromise = fetchImage(bannerUrl);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Banner fetch timeout')), 3000));
+      bannerBuffer = await Promise.race([fetchPromise, timeoutPromise]);
+      
+      if (bannerBuffer) {
+        console.log('[OG IMAGE] generateWithSharp: Successfully fetched banner from API, size:', bannerBuffer.length);
+      } else {
+        console.log('[OG IMAGE] generateWithSharp: Banner fetch returned null/empty');
+      }
+    } catch (e) {
+      console.log('[OG IMAGE] generateWithSharp: Could not fetch banner from API (timeout or error):', e.message);
+      // Fallback to local banner if API fails
+      const bannerPath = path.join(__dirname, '..', 'assets', 'twitter-banner.png');
+      if (fs.existsSync(bannerPath)) {
+        console.log('[OG IMAGE] generateWithSharp: Using local banner as fallback');
+        bannerBuffer = fs.readFileSync(bannerPath);
+      } else {
+        console.log('[OG IMAGE] generateWithSharp: No local banner found, will create blank banner');
+      }
+    }
+    
     // Resize banner to standard OG image size (1200x630)
     const width = 1200;
     const height = 630;
-    const resizedBanner = await banner.resize(width, height, { fit: 'cover' });
-    console.log('[OG IMAGE] generateWithSharp: Banner dimensions:', { width, height });
+    
+    let resizedBanner;
+    if (bannerBuffer) {
+      const banner = sharp(bannerBuffer);
+      resizedBanner = await banner.resize(width, height, { fit: 'cover' });
+      console.log('[OG IMAGE] generateWithSharp: Banner dimensions:', { width, height });
+    } else {
+      // Create a blank banner with gradient background if no banner available
+      console.log('[OG IMAGE] generateWithSharp: Creating blank banner with gradient');
+      const gradientSVG = Buffer.from(`
+        <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#1a1a1a;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#0a0a0a;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <rect width="${width}" height="${height}" fill="url(#grad)"/>
+        </svg>
+      `);
+      resizedBanner = sharp(gradientSVG).resize(width, height);
+    }
     
 
     let coinImageBuffer = null;

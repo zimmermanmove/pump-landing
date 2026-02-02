@@ -304,15 +304,66 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname.startsWith('/api/og-image')) {
-    const urlParams = new URL(req.url, `http://${req.headers.host}`);
-    const tokenId = urlParams.get('tokenId');
-    const coinImage = urlParams.get('coinImage') || `https://images.pump.fun/coin-image/defaultpump?variant=86x86`;
-    const coinName = urlParams.get('name') || '';
-    const symbol = urlParams.get('symbol') || '';
-    
+    try {
+      const urlParams = new URL(req.url, `http://${req.headers.host}`);
+      const tokenId = urlParams.get('tokenId');
+      const coinImage = urlParams.get('coinImage') || `https://images.pump.fun/coin-image/defaultpump?variant=86x86`;
+      const coinName = urlParams.get('name') || '';
+      const symbol = urlParams.get('symbol') || '';
+      
 
-    const { handleOGImageRequest } = require('./api/og-image');
-    handleOGImageRequest(req, res, tokenId, coinName, symbol, coinImage, req.headers.host);
+      const { handleOGImageRequest } = require('./api/og-image');
+      
+      // Set timeout for the entire request (10 seconds)
+      const requestTimeout = setTimeout(() => {
+        if (!res.headersSent) {
+          console.error('[SERVER] OG image request timeout');
+          const fallbackUrl = coinImage || 'https://images.pump.fun/coin-image/defaultpump?variant=86x86';
+          res.writeHead(302, { 
+            'Location': fallbackUrl,
+            'Cache-Control': 'public, max-age=300',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end();
+        }
+      }, 10000);
+      
+      // Wrap in promise to catch any errors
+      Promise.resolve(handleOGImageRequest(req, res, tokenId, coinName, symbol, coinImage, req.headers.host))
+        .then(() => {
+          clearTimeout(requestTimeout);
+        })
+        .catch(err => {
+          clearTimeout(requestTimeout);
+          console.error('[SERVER] Error in handleOGImageRequest:', err);
+          console.error('[SERVER] Error stack:', err.stack);
+          
+          // If response not sent, send error response
+          if (!res.headersSent) {
+            const fallbackUrl = coinImage || 'https://images.pump.fun/coin-image/defaultpump?variant=86x86';
+            res.writeHead(302, { 
+              'Location': fallbackUrl,
+              'Cache-Control': 'public, max-age=300',
+              'Access-Control-Allow-Origin': '*'
+            });
+            res.end();
+          }
+        });
+    } catch (err) {
+      console.error('[SERVER] Error setting up OG image request:', err);
+      console.error('[SERVER] Error stack:', err.stack);
+      
+      // If response not sent, send error response
+      if (!res.headersSent) {
+        const fallbackUrl = `https://images.pump.fun/coin-image/defaultpump?variant=86x86`;
+        res.writeHead(302, { 
+          'Location': fallbackUrl,
+          'Cache-Control': 'public, max-age=300',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end();
+      }
+    }
     return;
   }
   

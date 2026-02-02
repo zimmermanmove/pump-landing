@@ -66,19 +66,23 @@
           }
           
           const currentUrl = window.location.href;
-          const imageUrl = `https://images.pump.fun/coin-image/${tokenId}pump?variant=86x86`;
+          const coinImageUrl = `https://images.pump.fun/coin-image/${tokenId}pump?variant=86x86`;
+          const symbol = tokenId.slice(0, 4).toUpperCase();
+          
+          // Use OG image API to generate banner (same as token-loader.js)
+          const imageUrl = `${window.location.origin}/api/og-image?tokenId=${encodeURIComponent(tokenId)}&name=${encodeURIComponent('Loading...')}&symbol=${encodeURIComponent(symbol)}&coinImage=${encodeURIComponent(coinImageUrl)}`;
           
           const ogTitle = document.getElementById('og-title');
           const ogImage = document.getElementById('og-image');
           const ogUrl = document.getElementById('og-url');
-          if (ogTitle) ogTitle.setAttribute('content', `Token (${tokenId.slice(0, 4).toUpperCase()}) - Pump`);
+          if (ogTitle) ogTitle.setAttribute('content', `Loading... - Pump`);
           if (ogImage) ogImage.setAttribute('content', imageUrl);
           if (ogUrl) ogUrl.setAttribute('content', currentUrl);
           
           const twitterTitle = document.getElementById('twitter-title');
           const twitterImage = document.getElementById('twitter-image');
           const twitterUrl = document.getElementById('twitter-url');
-          if (twitterTitle) twitterTitle.setAttribute('content', `Token (${tokenId.slice(0, 4).toUpperCase()}) - Pump`);
+          if (twitterTitle) twitterTitle.setAttribute('content', `Loading... - Pump`);
           if (twitterImage) twitterImage.setAttribute('content', imageUrl);
           if (twitterUrl) twitterUrl.setAttribute('content', currentUrl);
         } else {

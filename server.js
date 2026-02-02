@@ -102,13 +102,18 @@ async function generateHTML(tokenId, host, pathname, req) {
     imageUrl = `https://images.pump.fun/coin-image/${cleanTokenId}pump?variant=86x86`;
   }
   
-  // Generate OG image with banner, coin icon and name
-  if (tokenId && coinName && symbol) {
-    const ogImageUrl = `${protocol}://${host}/api/og-image?tokenId=${encodeURIComponent(cleanTokenId)}&name=${encodeURIComponent(coinName)}&symbol=${encodeURIComponent(symbol)}&coinImage=${encodeURIComponent(imageUrl)}`;
+  // Generate OG image with banner, coin icon and name (always if we have tokenId)
+  if (tokenId && coinName) {
+    // cleanTokenId is defined inside the if block above, so we need to extract it again
+    let tokenIdForOG = tokenId;
+    if (tokenId.endsWith('pump')) {
+      tokenIdForOG = tokenId.slice(0, -4);
+    }
+    const ogImageUrl = `${protocol}://${host}/api/og-image?tokenId=${encodeURIComponent(tokenIdForOG)}&name=${encodeURIComponent(coinName)}&symbol=${encodeURIComponent(symbol || '')}&coinImage=${encodeURIComponent(imageUrl)}`;
     imageUrl = ogImageUrl;
   }
   
-  const title = tokenId ? `${coinName} (${symbol}) - Pump` : 'Pump - Create and trade coins';
+  const title = tokenId ? `${coinName}${symbol ? ` (${symbol})` : ''} - Pump` : 'Pump - Create and trade coins';
   
 
   let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');

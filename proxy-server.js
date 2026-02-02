@@ -45,7 +45,7 @@ const server = http.createServer((req, res) => {
   let targetUrl;
   try {
 
-    const requestUrl = new URL(req.url, `http:
+    const requestUrl = new URL(req.url, `http://${req.headers.host}`);
     targetUrl = requestUrl.searchParams.get('url');
     
     console.log('Request URL:', req.url);
@@ -316,7 +316,7 @@ const server = http.createServer((req, res) => {
 
             let finalRedirectUrl = redirectUrl;
             try {
-              if (!redirectUrl.startsWith('http:
+              if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
                 finalRedirectUrl = new URL(redirectUrl, targetUrl).href;
               }
             } catch (e) {

@@ -48,13 +48,13 @@ async function generateHTML(tokenId, host, pathname, req) {
 
   const protocol = (req && (req.headers['cf-visitor'] || req.headers['x-forwarded-proto'] === 'https')) ? 'https' : 
                    (host.includes('testsol.top') || host.includes('localhost') === false) ? 'https' : 'http';
-  const currentUrl = `${protocol}:
+  const currentUrl = `${protocol}://${host}${pathname}`;
   
   let coinName = 'Pump';
   let symbol = '';
   let description = 'Pump allows anyone to create coins. All coins created on Pump are fair-launch, meaning everyone has equal access to buy and sell when the coin is first created.';
-  let imageUrl = `${protocol}:
-  let coinImageUrl = `${protocol}:
+  let imageUrl = `${protocol}://${host}/pump1.svg`;
+  let coinImageUrl = `${protocol}://${host}/pump1.svg`;
   
   if (tokenId) {
 
@@ -64,7 +64,7 @@ async function generateHTML(tokenId, host, pathname, req) {
     }
     
 
-    coinImageUrl = `https:
+    coinImageUrl = `https://images.pump.fun/coin-image/${cleanTokenId}pump?variant=86x86`;
     
 
     try {
@@ -99,7 +99,7 @@ async function generateHTML(tokenId, host, pathname, req) {
     
 
 
-    imageUrl = `https:
+    imageUrl = `https://images.pump.fun/coin-image/${cleanTokenId}pump?variant=86x86`;
   }
   
   const title = tokenId ? `${coinName} (${symbol}) - Pump` : 'Pump - Create and trade coins';

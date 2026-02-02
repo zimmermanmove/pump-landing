@@ -2,7 +2,7 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 
-// Proxy list
+
 const proxies = [
   { host: 'res.proxy-seller.com', port: 10255, auth: '474d9e084208332f:QsYn3Fvt' },
   { host: 'res.proxy-seller.com', port: 10256, auth: '474d9e084208332f:QsYn3Fvt' },
@@ -30,7 +30,7 @@ function getNextProxy() {
 }
 
 const server = http.createServer((req, res) => {
-  // Enable CORS
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -41,17 +41,17 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Get target URL from query parameter
+
   let targetUrl;
   try {
-    // Parse the request URL
-    const requestUrl = new URL(req.url, `http://${req.headers.host}`);
+
+    const requestUrl = new URL(req.url, `http:
     targetUrl = requestUrl.searchParams.get('url');
     
     console.log('Request URL:', req.url);
     console.log('Extracted targetUrl:', targetUrl);
     
-    // If no url param, try to extract from path manually
+
     if (!targetUrl) {
       const urlMatch = req.url.match(/[?&]url=([^&]+)/);
       if (urlMatch) {
@@ -73,14 +73,14 @@ const server = http.createServer((req, res) => {
     return;
   }
   
-  // Decode URL if needed (may be double-encoded)
+
   try {
     const decoded = decodeURIComponent(targetUrl);
     if (decoded !== targetUrl && decoded.includes('http')) {
       targetUrl = decoded;
     }
   } catch (e) {
-    // Already decoded or invalid, use as is
+
     console.log('URL decode attempt failed, using as-is');
   }
   
@@ -92,7 +92,7 @@ const server = http.createServer((req, res) => {
 
     console.log(`Proxying ${targetUrl} through ${proxy.host}:${proxy.port}`);
 
-    // Use HTTP CONNECT method for HTTPS through HTTP proxy
+
     if (target.protocol === 'https:') {
       const options = {
         hostname: proxy.host,
@@ -109,15 +109,15 @@ const server = http.createServer((req, res) => {
       
       connectReq.on('connect', (proxyRes, socket, head) => {
         if (proxyRes.statusCode === 200) {
-          // Create HTTPS request through the tunnel using Node.js https module
-          // Determine Accept header based on URL (images need image/*)
+
+
           const isImage = target.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i) || 
                          target.hostname.includes('images.pump.fun');
           const acceptHeader = isImage 
             ? 'image/*,*/*;q=0.8'
             : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
           
-          // Use https.request with the socket from CONNECT tunnel
+
           const httpsOptions = {
             socket: socket,
             agent: false,
@@ -135,32 +135,32 @@ const server = http.createServer((req, res) => {
           };
           
           const httpsReq = https.request(httpsOptions, (httpsRes) => {
-            // For HTTPS CONNECT, redirects are complex - just pass through with CORS
-            // The client will handle the redirect if needed
-            // Set CORS headers
+
+
+
             const headers = {
               'Content-Type': httpsRes.headers['content-type'] || (isImage ? 'image/png' : 'text/html'),
               'Access-Control-Allow-Origin': '*',
             };
             
-            // If redirect, add Location header with CORS
+
             if ([301, 302, 307, 308].includes(httpsRes.statusCode)) {
               const redirectUrl = httpsRes.headers.location;
               if (redirectUrl) {
                 console.log(`HTTPS redirect: ${targetUrl} -> ${redirectUrl}`);
-                // For redirects, we need to proxy the redirect URL
-                // Make a new request to the redirect URL through our proxy
+
+
                 const redirectCount = req.redirectCount || 0;
                 if (redirectCount < 5) {
-                  // Close current connection
+
                   httpsRes.destroy();
                   socket.destroy();
                   
-                  // Create new request object for redirect
+
                   const redirectTarget = new URL(redirectUrl);
                   const newTargetUrl = redirectUrl;
                   
-                  // Recursively process redirect by creating new CONNECT
+
                   const newConnectReq = http.request({
                     hostname: proxy.host,
                     port: proxy.port,
@@ -256,7 +256,7 @@ const server = http.createServer((req, res) => {
             }
           });
           
-          // Handle any data that came before the request (shouldn't happen, but just in case)
+
           if (head && head.length > 0) {
             socket.unshift(head);
           }
@@ -279,8 +279,8 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    // For HTTP requests, use regular proxy
-    // Determine Accept header based on URL (images need image/*)
+
+
     const isImage = target.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i) || 
                    target.hostname.includes('images.pump.fun') ||
                    target.pathname.includes('coin-image') ||
@@ -304,19 +304,19 @@ const server = http.createServer((req, res) => {
     };
 
     const proxyReq = http.request(options, (proxyRes) => {
-      // Handle redirects (301, 302, 307, 308) - follow up to 5 redirects
+
       if ([301, 302, 307, 308].includes(proxyRes.statusCode)) {
         const redirectUrl = proxyRes.headers.location;
         if (redirectUrl) {
           console.log(`Following redirect from ${targetUrl} to ${redirectUrl}`);
-          // Recursively follow redirect (with max depth to prevent loops)
+
           const redirectCount = req.redirectCount || 0;
           if (redirectCount < 5) {
             req.redirectCount = redirectCount + 1;
-            // Resolve relative redirect URLs
+
             let finalRedirectUrl = redirectUrl;
             try {
-              if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
+              if (!redirectUrl.startsWith('http:
                 finalRedirectUrl = new URL(redirectUrl, targetUrl).href;
               }
             } catch (e) {
@@ -330,7 +330,7 @@ const server = http.createServer((req, res) => {
             
             try {
               const redirectTarget = new URL(finalRedirectUrl);
-              // Create new proxy request for redirect
+
               const redirectOptions = {
                 hostname: proxy.host,
                 port: proxy.port,
@@ -400,7 +400,7 @@ const server = http.createServer((req, res) => {
         }
       }
       
-      // Preserve original Content-Type, especially for images
+
       const contentType = proxyRes.headers['content-type'] || 
                         (isImage ? 'image/png' : 'text/html');
       
@@ -409,7 +409,7 @@ const server = http.createServer((req, res) => {
         'Access-Control-Allow-Origin': '*',
       };
       
-      // Preserve other important headers for images
+
       if (isImage && proxyRes.headers['content-length']) {
         headers['Content-Length'] = proxyRes.headers['content-length'];
       }
@@ -440,6 +440,6 @@ const server = http.createServer((req, res) => {
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 server.listen(PORT, HOST, () => {
-  // console.log(`Proxy server running on http://${HOST}:${PORT}`);
-  // console.log(`Use: http://${HOST}:${PORT}/?url=https://pump.fun/coin/...`);
+
+
 });

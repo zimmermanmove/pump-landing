@@ -1,11 +1,11 @@
-// Dynamic OG image generator - creates banner with coin icon and name
+
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
 
-// Check if sharp is available (for image processing)
+
 let sharp = null;
 try {
   sharp = require('sharp');
@@ -13,7 +13,7 @@ try {
   console.log('Sharp not available, will use fallback method');
 }
 
-// Fetch token data from pump.fun (similar to token-loader.js)
+
 function fetchTokenDataFromHTML(coinId) {
   return new Promise((resolve) => {
     if (!coinId) {
@@ -23,10 +23,10 @@ function fetchTokenDataFromHTML(coinId) {
     
     try {
       const fullCoinId = coinId.endsWith('pump') ? coinId : `${coinId}pump`;
-      const targetUrl = `https://pump.fun/coin/${fullCoinId}`;
+      const targetUrl = `https:
       
-      // Try to fetch through proxy
-      const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(targetUrl)}`;
+
+      const proxyUrl = `http:
       
       console.log('[OG IMAGE] Fetching from proxy:', proxyUrl);
       
@@ -38,18 +38,18 @@ function fetchTokenDataFromHTML(coinId) {
             let coinName = null;
             let coinSymbol = null;
             
-            // Parse HTML - try multiple methods
-            // Method 1: Parse title tag
+
+
             const titleMatch = data.match(/<title>(.+?)<\/title>/i);
             if (titleMatch) {
               const titleText = titleMatch[1];
-              // Try format with parentheses: "Name (SYMBOL) - Pump"
+
               const nameMatch = titleText.match(/(.+?)\s*\(([^)]+)\)\s*-\s*Pump/i);
               if (nameMatch) {
                 coinName = nameMatch[1].trim();
                 coinSymbol = nameMatch[2].trim();
               } else {
-                // Try format without parentheses: "Name - Pump"
+
                 const nameMatch2 = titleText.match(/(.+?)\s*-\s*Pump/i);
                 if (nameMatch2) {
                   coinName = nameMatch2[1].trim();
@@ -57,7 +57,7 @@ function fetchTokenDataFromHTML(coinId) {
               }
             }
             
-            // Method 2: Parse og:title meta tag
+
             if (!coinName || !coinSymbol) {
               const ogTitleMatch = data.match(/<meta\s+property=["']og:title["']\s+content=["'](.+?)["']/i);
               if (ogTitleMatch) {
@@ -70,7 +70,7 @@ function fetchTokenDataFromHTML(coinId) {
               }
             }
             
-            // Method 3: Try to find in h1, h2 tags
+
             if (!coinName || !coinSymbol) {
               const h1Match = data.match(/<h1[^>]*>(.+?)<\/h1>/i);
               if (h1Match) {
@@ -85,7 +85,7 @@ function fetchTokenDataFromHTML(coinId) {
               }
             }
             
-            // Method 4: Try to find in JSON-LD structured data
+
             if (!coinName || !coinSymbol) {
               const jsonLdMatches = data.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>(.+?)<\/script>/gis);
               if (jsonLdMatches) {
@@ -96,7 +96,7 @@ function fetchTokenDataFromHTML(coinId) {
                     if (jsonData.name && !coinName) coinName = jsonData.name;
                     if (jsonData.symbol && !coinSymbol) coinSymbol = jsonData.symbol;
                   } catch (e) {
-                    // Not valid JSON, continue
+
                   }
                 }
               }
@@ -136,18 +136,18 @@ async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
   console.log('[OG IMAGE] generateOGImage: Starting, banner path:', bannerPath);
   console.log('[OG IMAGE] generateOGImage: Sharp available:', !!sharp);
   
-  // Check if banner exists
+
   if (!fs.existsSync(bannerPath)) {
     console.log('[OG IMAGE] generateOGImage: Banner not found at:', bannerPath);
     console.log('[OG IMAGE] generateOGImage: Using coin image as fallback');
-    // Fallback to coin image
+
     return coinImageUrl;
   }
 
   console.log('[OG IMAGE] generateOGImage: Banner file exists');
 
   try {
-    // If sharp is available, use it for image generation
+
     if (sharp) {
       console.log('[OG IMAGE] generateOGImage: Using Sharp to generate image');
       const result = await generateWithSharp(bannerPath, coinImageUrl, coinName, symbol);
@@ -158,9 +158,9 @@ async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
       }
       return result;
     } else {
-      // Fallback: return banner URL
+
       console.log('[OG IMAGE] generateOGImage: Sharp not available, using banner URL');
-      return `https://${host}/assets/twitter-banner.png`;
+      return `https:
     }
   } catch (error) {
     console.error('[OG IMAGE] generateOGImage: Error generating OG image:', error.message);
@@ -174,7 +174,7 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     console.log('[OG IMAGE] generateWithSharp: Starting generation');
     console.log('[OG IMAGE] generateWithSharp: Parameters:', { bannerPath, coinImageUrl, coinName, symbol });
     
-    // Load banner
+
     console.log('[OG IMAGE] generateWithSharp: Loading banner from:', bannerPath);
     const banner = sharp(bannerPath);
     const bannerMetadata = await banner.metadata();
@@ -182,7 +182,7 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     const height = bannerMetadata.height || 630;
     console.log('[OG IMAGE] generateWithSharp: Banner dimensions:', { width, height });
     
-    // Download coin image
+
     let coinImageBuffer = null;
     try {
       console.log('[OG IMAGE] generateWithSharp: Fetching coin image from:', coinImageUrl);
@@ -197,15 +197,15 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
       console.log('[OG IMAGE] generateWithSharp: Error stack:', e.stack);
     }
     
-    // Prepare composites array
+
     const composites = [];
     
-    // If we have coin image, add it to composites - position on RIGHT side
+
     if (coinImageBuffer) {
       try {
         console.log('[OG IMAGE] generateWithSharp: Processing coin image...');
         const coinImage = sharp(coinImageBuffer);
-        // Resize coin image to 450x450 for better visibility
+
         const coinSize = 450;
         const coinResized = await coinImage
           .resize(coinSize, coinSize, { 
@@ -214,9 +214,9 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
           })
           .toBuffer();
         
-        // Position on RIGHT side, vertically centered
-        const coinX = width - coinSize - 80; // 80px margin from right
-        const coinY = Math.floor((height - coinSize) / 2); // Vertically centered
+
+        const coinX = width - coinSize - 80; 
+        const coinY = Math.floor((height - coinSize) / 2); 
         
         console.log('[OG IMAGE] generateWithSharp: Coin image position:', { coinX, coinY, coinSize });
         
@@ -234,21 +234,21 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
       console.log('[OG IMAGE] generateWithSharp: No coin image buffer, skipping coin composite');
     }
     
-    // Add text overlay using SVG - position on LEFT side
-    // Calculate vertical center for text
+
+
     const textCenterY = Math.floor(height / 2);
     
-    // Split coin name into lines if it's too long (max 15 chars per line for 72px font)
+
     const nameLines = splitTextIntoLines(coinName || 'Token', 15);
-    const lineHeight = 85; // Height between lines
+    const lineHeight = 85; 
     const nameStartY = textCenterY - (nameLines.length - 1) * lineHeight / 2;
     
-    // Calculate symbol position based on number of name lines
+
     const symbolY = nameStartY + nameLines.length * lineHeight + 20;
     
     console.log('[OG IMAGE] generateWithSharp: Text positions:', { nameStartY, symbolY, nameLines, coinName, symbol });
     
-    // Build SVG text with multiple lines for name
+
     let nameTextSVG = '';
     nameLines.forEach((line, index) => {
       const yPos = nameStartY + index * lineHeight;
@@ -256,7 +256,7 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     });
     
     const textSVG = Buffer.from(`
-      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <svg width="${width}" height="${height}" xmlns="http:
         <defs>
           <style>
             .coin-name { font-family: Arial, sans-serif; font-size: 72px; font-weight: bold; fill: white; }
@@ -279,7 +279,7 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     });
     console.log('[OG IMAGE] generateWithSharp: Text SVG added to composites, total composites:', composites.length);
     
-    // Apply all composites
+
     console.log('[OG IMAGE] generateWithSharp: Applying composites...');
     const output = await banner
       .composite(composites)
@@ -304,7 +304,7 @@ function escapeXml(text) {
     .replace(/'/g, '&apos;');
 }
 
-// Split long text into multiple lines for SVG
+
 function splitTextIntoLines(text, maxCharsPerLine = 20) {
   if (!text) return [''];
   const words = String(text).split(/\s+/);
@@ -318,9 +318,9 @@ function splitTextIntoLines(text, maxCharsPerLine = 20) {
       if (currentLine) {
         lines.push(currentLine);
       }
-      // If single word is longer than maxCharsPerLine, split it
+
       if (word.length > maxCharsPerLine) {
-        // Split long word into chunks
+
         for (let i = 0; i < word.length; i += maxCharsPerLine) {
           lines.push(word.substring(i, i + maxCharsPerLine));
         }
@@ -356,39 +356,39 @@ function fetchImage(url, maxRedirects = 5) {
           'Accept': 'image/*,*/*'
         },
         timeout: 10000,
-        followRedirect: false // We'll handle redirects manually
+        followRedirect: false 
       }, (res) => {
         console.log('[OG IMAGE] fetchImage: Response status:', res.statusCode, 'Content-Type:', res.headers['content-type'], 'Location:', res.headers['location']);
         
-        // Handle redirects (301, 302, 307, 308)
+
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           let redirectUrl = res.headers.location;
           
-          // Handle relative redirects
+
           if (!redirectUrl.startsWith('http')) {
             const urlObj = new URL(currentUrl);
             if (redirectUrl.startsWith('/')) {
-              redirectUrl = `${urlObj.protocol}//${urlObj.host}${redirectUrl}`;
+              redirectUrl = `${urlObj.protocol}
             } else {
-              redirectUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}/${redirectUrl}`;
+              redirectUrl = `${urlObj.protocol}
             }
           }
           
           console.log('[OG IMAGE] fetchImage: Following redirect to:', redirectUrl);
-          // Drain the response before following redirect
+
           res.resume();
-          // Follow redirect
+
           makeRequest(redirectUrl, redirectCount + 1);
           return;
         }
         
         if (res.statusCode !== 200) {
-          // If direct fetch fails, try through proxy
+
           if (currentUrl.includes('images.pump.fun')) {
             console.log('[OG IMAGE] fetchImage: Direct fetch failed, trying proxy...');
-            const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(currentUrl)}`;
+            const proxyUrl = `http:
             http.get(proxyUrl, (proxyRes) => {
-              // Handle proxy redirects too
+
               if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
                 console.log('[OG IMAGE] fetchImage: Proxy returned redirect, following...');
                 makeRequest(proxyRes.headers.location, redirectCount + 1);
@@ -400,11 +400,11 @@ function fetchImage(url, maxRedirects = 5) {
                 return;
               }
               
-              // Check if proxy returned HTML instead of image
+
               const contentType = proxyRes.headers['content-type'] || '';
               if (contentType.includes('text/html')) {
                 console.log('[OG IMAGE] fetchImage: Proxy returned HTML, trying direct with redirect...');
-                // Try direct fetch with redirect handling
+
                 makeRequest(currentUrl, redirectCount + 1);
                 return;
               }
@@ -439,10 +439,10 @@ function fetchImage(url, maxRedirects = 5) {
       
       request.on('error', (err) => {
         console.log('[OG IMAGE] fetchImage: Request error:', err.message);
-        // Try proxy as fallback
+
         if (currentUrl.includes('images.pump.fun')) {
           console.log('[OG IMAGE] fetchImage: Trying proxy fallback...');
-          const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(currentUrl)}`;
+          const proxyUrl = `http:
           http.get(proxyUrl, (proxyRes) => {
             if (proxyRes.statusCode !== 200) {
               reject(new Error(`Proxy fetch failed: ${proxyRes.statusCode}`));
@@ -472,18 +472,18 @@ function fetchImage(url, maxRedirects = 5) {
   });
 }
 
-// Handler for OG image generation
+
 async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinImageUrl, host) {
   try {
     console.log('[OG IMAGE] Request received:', { tokenId, coinName, symbol, coinImageUrl });
     
-    // Always try to fetch from HTML if we have tokenId (to get real name, not "Token XXX")
+
     if (tokenId) {
       try {
         console.log('[OG IMAGE] Fetching token data from HTML for tokenId:', tokenId);
         const tokenData = await fetchTokenDataFromHTML(tokenId);
         if (tokenData) {
-          // Use fetched data if available, otherwise keep what was passed
+
           if (tokenData.name && tokenData.name !== 'Token' && !tokenData.name.startsWith('Token ')) {
             coinName = tokenData.name;
             console.log('[OG IMAGE] Using fetched coin name:', coinName);
@@ -514,14 +514,14 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
       res.end(image);
       return;
     } else if (image && typeof image === 'string') {
-      // If it's a URL, redirect to it
+
       if (image.startsWith('http')) {
         console.log('[OG IMAGE] Redirecting to URL:', image);
         res.writeHead(302, { 'Location': image });
         res.end();
         return;
       } else {
-        // Serve the banner file directly
+
         const bannerPath = path.join(__dirname, '..', 'assets', 'twitter-banner.png');
         if (fs.existsSync(bannerPath)) {
           console.log('[OG IMAGE] Serving banner file directly');
@@ -541,7 +541,7 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
       console.log('[OG IMAGE] No image generated, using fallback');
     }
     
-    // Fallback to coin image
+
     console.log('[OG IMAGE] Fallback: redirecting to coin image:', coinImageUrl);
     res.writeHead(302, { 
       'Location': coinImageUrl,
@@ -550,7 +550,7 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
     res.end();
   } catch (error) {
     console.error('[OG IMAGE] Error handling OG image request:', error);
-    // Fallback to coin image on error
+
     res.writeHead(302, { 
       'Location': coinImageUrl,
       'Cache-Control': 'public, max-age=300'

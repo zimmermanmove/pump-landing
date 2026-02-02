@@ -1,4 +1,4 @@
-// Server for handling requests and generating proper meta tags for social media bots
+
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -7,7 +7,7 @@ const { URL } = require('url');
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-// Check if request is from a bot
+
 function isBot(userAgent) {
   if (!userAgent) return false;
   const botPatterns = [
@@ -27,7 +27,7 @@ function isBot(userAgent) {
   return botPatterns.some(pattern => userAgent.toLowerCase().includes(pattern));
 }
 
-// Extract token ID from path
+
 function extractTokenId(pathname) {
   const parts = pathname.split('/').filter(p => p);
   const liveIndex = parts.indexOf('live');
@@ -43,35 +43,35 @@ function extractTokenId(pathname) {
   return null;
 }
 
-// Generate HTML with meta tags (async to fetch token data)
+
 async function generateHTML(tokenId, host, pathname, req) {
-  // Determine protocol - use HTTPS if Cloudflare is detected or if host contains domain
+
   const protocol = (req && (req.headers['cf-visitor'] || req.headers['x-forwarded-proto'] === 'https')) ? 'https' : 
                    (host.includes('testsol.top') || host.includes('localhost') === false) ? 'https' : 'http';
-  const currentUrl = `${protocol}://${host}${pathname}`;
+  const currentUrl = `${protocol}:
   
   let coinName = 'Pump';
   let symbol = '';
   let description = 'Pump allows anyone to create coins. All coins created on Pump are fair-launch, meaning everyone has equal access to buy and sell when the coin is first created.';
-  let imageUrl = `${protocol}://${host}/pump1.svg`;
-  let coinImageUrl = `${protocol}://${host}/pump1.svg`;
+  let imageUrl = `${protocol}:
+  let coinImageUrl = `${protocol}:
   
   if (tokenId) {
-    // Remove 'pump' suffix if present
+
     let cleanTokenId = tokenId;
     if (tokenId.endsWith('pump')) {
       cleanTokenId = tokenId.slice(0, -4);
     }
     
-    // Use images.pump.fun for coin image
-    coinImageUrl = `https://images.pump.fun/coin-image/${cleanTokenId}pump?variant=86x86`;
+
+    coinImageUrl = `https:
     
-    // Try to fetch real token data from HTML (for bots, this is important)
+
     try {
       const { fetchTokenDataFromHTML } = require('./api/og-image');
       const tokenData = await Promise.race([
         fetchTokenDataFromHTML(cleanTokenId),
-        new Promise(resolve => setTimeout(() => resolve(null), 3000)) // 3 second timeout
+        new Promise(resolve => setTimeout(() => resolve(null), 3000)) 
       ]);
       
       if (tokenData && tokenData.name && tokenData.name !== 'Token' && !tokenData.name.startsWith('Token ')) {
@@ -79,7 +79,7 @@ async function generateHTML(tokenId, host, pathname, req) {
         symbol = tokenData.symbol || '';
         console.log('[SERVER] Fetched token data for bot:', { coinName, symbol });
       } else {
-        // Fallback: extract symbol from token ID
+
         if (cleanTokenId.length > 4) {
           symbol = cleanTokenId.slice(0, 4).toUpperCase();
         }
@@ -88,7 +88,7 @@ async function generateHTML(tokenId, host, pathname, req) {
       }
     } catch (e) {
       console.log('[SERVER] Error fetching token data, using fallback:', e.message);
-      // Fallback: extract symbol from token ID
+
       if (cleanTokenId.length > 4) {
         symbol = cleanTokenId.slice(0, 4).toUpperCase();
       }
@@ -97,17 +97,17 @@ async function generateHTML(tokenId, host, pathname, req) {
     
     description = `Trade ${coinName} on Pump. ${description}`;
     
-    // Use dynamic OG image generator for Twitter/OG preview
-    // Always use HTTPS for OG images (required by social media platforms)
-    imageUrl = `https://${host}/api/og-image?tokenId=${encodeURIComponent(cleanTokenId)}&coinImage=${encodeURIComponent(coinImageUrl)}&name=${encodeURIComponent(coinName)}&symbol=${encodeURIComponent(symbol)}`;
+
+
+    imageUrl = `https:
   }
   
   const title = tokenId ? `${coinName} (${symbol}) - Pump` : 'Pump - Create and trade coins';
   
-  // Read index.html
+
   let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   
-  // Replace meta tags
+
   html = html.replace(
     /<meta property="og:title"[^>]*>/i,
     `<meta property="og:title" content="${title}" id="og-title" />`
@@ -151,20 +151,20 @@ async function generateHTML(tokenId, host, pathname, req) {
 }
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
+  const url = new URL(req.url, `http:
   const pathname = url.pathname;
   const userAgent = req.headers['user-agent'] || '';
   
-  // Determine if this is a static file request FIRST, before bot/token checks
+
   const requestedExt = path.extname(pathname).toLowerCase();
   const staticExtensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.json'];
   const isStaticFileRequest = staticExtensions.includes(requestedExt);
   
-  // For static file requests, serve them directly (skip bot/token logic)
+
   if (isStaticFileRequest) {
     let filePath = path.join(__dirname, pathname);
     
-    // Security: prevent directory traversal
+
     const resolvedPath = path.resolve(filePath);
     if (!resolvedPath.startsWith(path.resolve(__dirname))) {
       res.writeHead(403, { 'Content-Type': 'text/plain' });
@@ -172,7 +172,7 @@ const server = http.createServer((req, res) => {
       return;
     }
     
-    // Content type mapping
+
     const contentTypes = {
       '.html': 'text/html; charset=utf-8',
       '.js': 'text/javascript; charset=utf-8',
@@ -192,7 +192,7 @@ const server = http.createServer((req, res) => {
     
     const contentType = contentTypes[requestedExt] || 'application/octet-stream';
     
-    // Check if file exists
+
     fs.stat(filePath, (err, stats) => {
       if (err || !stats.isFile()) {
         res.writeHead(404, { 'Content-Type': contentType });
@@ -218,27 +218,66 @@ const server = http.createServer((req, res) => {
     return;
   }
   
-  // Handle OG image generation endpoint
+  
+  // Proxy route for images and external resources
+  if (pathname === '/proxy') {
+    const urlParams = new URL(req.url, `http://${req.headers.host}`);
+    const targetUrl = urlParams.searchParams.get('url');
+    
+    if (!targetUrl) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Missing url parameter');
+      return;
+    }
+    
+    // Proxy the request through proxy-server
+    try {
+      const proxyPort = process.env.PROXY_PORT || 3001;
+      const proxyUrl = `http://localhost:${proxyPort}/proxy?url=${encodeURIComponent(targetUrl)}`;
+      const proxyReq = http.get(proxyUrl, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, {
+          'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=3600'
+        });
+        proxyRes.pipe(res);
+      });
+      
+      proxyReq.on('error', (err) => {
+        console.error('[SERVER] Proxy error:', err.message);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'text/plain' });
+          res.end('Proxy error');
+        }
+      });
+    } catch (err) {
+      console.error('[SERVER] Proxy setup error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Proxy setup error');
+    }
+    return;
+  }
+
   if (pathname.startsWith('/api/og-image')) {
-    const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+    const urlParams = new URL(req.url, `http:
     const tokenId = urlParams.get('tokenId');
-    const coinImage = urlParams.get('coinImage') || `https://images.pump.fun/coin-image/${tokenId}pump?variant=86x86`;
+    const coinImage = urlParams.get('coinImage') || `https:
     const coinName = urlParams.get('name') || '';
     const symbol = urlParams.get('symbol') || '';
     
-    // Import and use OG image generator
+
     const { handleOGImageRequest } = require('./api/og-image');
     handleOGImageRequest(req, res, tokenId, coinName, symbol, coinImage, req.headers.host);
     return;
   }
   
-  // Check if it's a bot request (only for non-static files)
+
   const bot = isBot(userAgent);
   
-  // Extract token ID from path
+
   const tokenId = extractTokenId(pathname);
   
-  // If it's a bot or we have a token ID, generate HTML with proper meta tags
+
   if (bot || tokenId) {
     generateHTML(tokenId, req.headers.host, pathname, req)
       .then(html => {
@@ -247,7 +286,7 @@ const server = http.createServer((req, res) => {
       })
       .catch(err => {
         console.error('[SERVER] Error generating HTML:', err);
-        // Fallback: serve index.html without meta tags
+
         const filePath = path.join(__dirname, 'index.html');
         fs.readFile(filePath, (err, data) => {
           if (err) {
@@ -262,10 +301,10 @@ const server = http.createServer((req, res) => {
     return;
   }
   
-  // For regular HTML requests (non-static), serve index.html (SPA routing)
+
   let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
   
-  // Security: prevent directory traversal
+
   const resolvedPath = path.resolve(filePath);
   if (!resolvedPath.startsWith(path.resolve(__dirname))) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
@@ -273,14 +312,14 @@ const server = http.createServer((req, res) => {
     return;
   }
   
-  // Check if file exists
+
   fs.stat(filePath, (err, stats) => {
     if (err || !stats.isFile()) {
-      // For non-static files (HTML routes), serve index.html (SPA routing)
+
       filePath = path.join(__dirname, 'index.html');
     }
     
-    // Determine content type based on the ACTUAL file extension
+
     const fileExt = path.extname(filePath).toLowerCase();
     const contentTypes = {
       '.html': 'text/html; charset=utf-8',
@@ -314,7 +353,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Server running on http://${HOST}:${PORT}`);
+  console.log(`Server running on http:
   console.log('Bot detection enabled - meta tags will be generated for social media bots');
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

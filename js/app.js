@@ -3,7 +3,7 @@ async function connectWallet() {
     if (window.solana && window.solana.isPhantom) {
       await window.solana.connect();
     } else {
-      window.open('https://phantom.app/', '_blank');
+      window.open('https:
     }
   } catch (err) {
   }
@@ -48,10 +48,10 @@ function initTradeTabs() {
       
       tabs.forEach(t => t.classList.remove('active'));
       
-      // Add active to clicked tab
+
       this.classList.add('active');
       
-      // Update execute button text
+
       const executeBtn = document.querySelector('.trade-execute-btn');
       if (executeBtn) {
         if (tabType === 'sell') {
@@ -66,7 +66,7 @@ function initTradeTabs() {
   });
 }
 
-// Stream tabs
+
 function initStreamTabs() {
   const tabs = document.querySelectorAll('.streams-tab');
   tabs.forEach(tab => {
@@ -77,7 +77,7 @@ function initStreamTabs() {
   });
 }
 
-// Trade preset buttons
+
 function initTradePresets() {
   const presetBtns = document.querySelectorAll('.trade-preset-btn');
   const tradeInput = document.querySelector('.trade-input');
@@ -91,7 +91,7 @@ function initTradePresets() {
           tradeInput.value = '';
         }
       } else {
-        // Extract SOL amount
+
         const solAmount = value.replace(' SOL', '');
         if (tradeInput) {
           tradeInput.value = solAmount;
@@ -101,38 +101,37 @@ function initTradePresets() {
   });
 }
 
-// Initialize on DOM load
+
 document.addEventListener('DOMContentLoaded', function() {
   initModal();
   
-  // Connect wallet button
+
   const connectWalletBtn = document.getElementById('connectWalletBtn');
   if (connectWalletBtn) {
     connectWalletBtn.addEventListener('click', connectWallet);
   }
   
-  // Initialize token loader (load token data from pump.fun)
-  // Wait a bit to ensure TokenLoader is loaded
-  setTimeout(() => {
-    if (window.TokenLoader && window.TokenLoader.init) {
-      window.TokenLoader.init();
-    } else {
-      if (typeof initTokenLoader === 'function') {
-        initTokenLoader();
-      }
+
+
+  // Initialize token loader immediately without delay
+  if (window.TokenLoader && window.TokenLoader.init) {
+    window.TokenLoader.init();
+  } else {
+    if (typeof initTokenLoader === 'function') {
+      initTokenLoader();
     }
-  }, 100);
+  }
   
-  // Initialize trade tabs
+
   initTradeTabs();
   
-  // Initialize stream tabs
+
   initStreamTabs();
   
-  // Initialize trade presets
+
   initTradePresets();
   
-  // Close sidebar when clicking outside on mobile
+
   if (window.innerWidth < 1024) {
     document.addEventListener('click', function(e) {
       const sidebar = document.getElementById('sidebar');
@@ -146,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Mobile nav active state
+
   const mobileNavButtons = document.querySelectorAll('.mobile-nav button');
   mobileNavButtons.forEach((btn, index) => {
     btn.addEventListener('click', function() {
@@ -155,22 +154,22 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   
-  // Set first button as active by default
+
   if (mobileNavButtons.length > 0) {
     mobileNavButtons[0].classList.add('active');
   }
   
-  // Initialize live chat animations
+
   initLiveChat();
 });
 
-// Live chat animations and message generation
+
 function initLiveChat() {
   const chatMessagesList = document.getElementById('chatMessagesList');
   const chatEmptyState = document.getElementById('chatEmptyState');
   if (!chatMessagesList) return;
   
-  // Hide empty state when messages appear
+
   function checkEmptyState() {
     const messages = chatMessagesList.querySelectorAll('.chat-message');
     if (messages.length > 0 && chatEmptyState) {
@@ -180,16 +179,16 @@ function initLiveChat() {
     }
   }
   
-  // Animate existing messages on load
+
   const existingMessages = chatMessagesList.querySelectorAll('.chat-message');
   existingMessages.forEach((msg, index) => {
     msg.style.animationDelay = `${index * 0.1}s`;
   });
   
-  // Check initial state
+
   checkEmptyState();
   
-  // Auto-scroll to bottom
+
   const chatScroll = document.querySelector('.chat-scroll');
   if (chatScroll) {
     setTimeout(() => {
@@ -197,7 +196,7 @@ function initLiveChat() {
     }, 500);
   }
   
-  // Sample data for generating messages
+
   const usernames = [
     'crypto_trader', 'solana_moon', 'pump_king', 'degen_life', 'moon_boy',
     'whale_alert', 'diamond_hands', 'hodl_master', 'bull_run', 'lambo_soon',
@@ -258,14 +257,14 @@ function initLiveChat() {
     'rgb(14, 165, 233)'
   ];
   
-  // Function to create a new message
+
   function createNewMessage() {
     const username = usernames[Math.floor(Math.random() * usernames.length)];
     const message = messages[Math.floor(Math.random() * messages.length)];
     const color = colors[Math.floor(Math.random() * colors.length)];
     const avatar = avatars[Math.floor(Math.random() * avatars.length)];
     
-    // Get current date
+
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
     const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -277,7 +276,7 @@ function initLiveChat() {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const timeStr = `${hours}:${minutes}`;
     
-    // Create message element
+
     const messageDiv = document.createElement('div');
     messageDiv.className = 'chat-message';
     messageDiv.style.animation = 'slideInMessage 0.3s ease-out forwards';
@@ -296,7 +295,7 @@ function initLiveChat() {
       </div>
     `;
     
-    // Check if we need a date divider
+
     const lastDateDivider = chatMessagesList.querySelector('.chat-date-divider');
     let needsDateDivider = false;
     
@@ -309,7 +308,7 @@ function initLiveChat() {
       }
     }
     
-    // Add date divider if needed
+
     if (needsDateDivider) {
       const dateDivider = document.createElement('div');
       dateDivider.className = 'chat-date-divider';
@@ -317,25 +316,25 @@ function initLiveChat() {
       chatMessagesList.insertBefore(dateDivider, chatMessagesList.firstChild);
     }
     
-    // Insert message at the top (since we're using flex-direction: column-reverse)
+
     chatMessagesList.insertBefore(messageDiv, chatMessagesList.firstChild);
     
-    // Hide empty state
+
     checkEmptyState();
     
-    // Trigger animation
+
     setTimeout(() => {
       messageDiv.style.opacity = '1';
     }, 10);
     
-    // Auto-scroll to bottom
+
     if (chatScroll) {
       setTimeout(() => {
         chatScroll.scrollTop = chatScroll.scrollHeight;
       }, 100);
     }
     
-    // Limit messages to last 50 to prevent memory issues
+
     const allMessages = chatMessagesList.querySelectorAll('.chat-message');
     if (allMessages.length > 50) {
       for (let i = 50; i < allMessages.length; i++) {
@@ -344,16 +343,16 @@ function initLiveChat() {
     }
   }
   
-  // Generate new messages periodically (every 0.5-2 seconds for faster chat)
+
   function scheduleNextMessage() {
-    const delay = 500 + Math.random() * 1500; // 0.5-2 seconds
+    const delay = 500 + Math.random() * 1500; 
     setTimeout(() => {
       createNewMessage();
       scheduleNextMessage();
     }, delay);
   }
   
-  // Start generating messages after initial delay
+
   setTimeout(() => {
     scheduleNextMessage();
   }, 1000);

@@ -307,10 +307,10 @@ const server = http.createServer((req, res) => {
   if (pathname.startsWith('/api/og-image')) {
     try {
       const urlParams = new URL(req.url, `http://${req.headers.host}`);
-      const tokenId = urlParams.get('tokenId');
-      const coinImage = urlParams.get('coinImage') || `https://images.pump.fun/coin-image/defaultpump?variant=86x86`;
-      const coinName = urlParams.get('name') || '';
-      const symbol = urlParams.get('symbol') || '';
+      const tokenId = urlParams.searchParams.get('tokenId');
+      const coinImage = urlParams.searchParams.get('coinImage') || `https://images.pump.fun/coin-image/defaultpump?variant=86x86`;
+      const coinName = urlParams.searchParams.get('name') || '';
+      const symbol = urlParams.searchParams.get('symbol') || '';
       
 
       const { handleOGImageRequest } = require('./api/og-image');

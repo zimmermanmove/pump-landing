@@ -58,20 +58,14 @@ async function fetchTokenDataFromHTML(coinId) {
   
   const targetUrl = `https://pump.fun/coin/${fullCoinId}`;
   
-  // Try multiple methods: proxy first, then direct, then fallback
-  const proxyMethods = [
-    `${window.location.origin}/proxy?url=${encodeURIComponent(targetUrl)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-    targetUrl // Direct URL as last resort
-  ];
+  // Use ONLY local proxy - no external services to avoid CORS
+  const proxyUrl = `${window.location.origin}/proxy?url=${encodeURIComponent(targetUrl)}`;
   
-  // Try each method
-  for (const proxyUrl of proxyMethods) {
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1200); // Faster timeout 1.2 seconds
-        
-        const response = await fetch(proxyUrl, {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1000); // Fast timeout 1 second
+    
+    const response = await fetch(proxyUrl, {
           method: 'GET',
           headers: {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -79,9 +73,9 @@ async function fetchTokenDataFromHTML(coinId) {
           signal: controller.signal
         });
         
-        clearTimeout(timeoutId);
-        
-        if (response.ok) {
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
           const html = await response.text();
           
 
@@ -354,13 +348,12 @@ async function fetchTokenDataFromHTML(coinId) {
             };
           }
         }
-      } catch (err) {
-        // Error with this method, try next one
-        continue;
-      }
+    } catch (error) {
+      // Error with proxy setup, return null
+      console.warn('[TOKEN LOADER] Error setting up proxy:', error.message);
+      return null;
     }
     
-    // If all methods failed, return null
     return null;
 }
 
@@ -550,13 +543,13 @@ async function initTokenLoader() {
   // Mark that we've started loading
   window._tokenLoaderHasTriedLoading = true;
   
-  // Try to fetch real token data - faster with single attempt
+  // Try to fetch real token data - single fast attempt
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   
-  // Load HTML data with faster timeout (1.5 seconds)
+  // Load HTML data with fast timeout (1 second)
   const htmlDataPromise = fetchTokenDataFromHTML(fullCoinId).catch(() => null);
-  const fastTimeout = new Promise(resolve => setTimeout(() => resolve(null), 1500));
+  const fastTimeout = new Promise(resolve => setTimeout(() => resolve(null), 1000));
   
   // Race between actual fetch and timeout
   const htmlData = await Promise.race([htmlDataPromise, fastTimeout]);
@@ -568,7 +561,7 @@ async function initTokenLoader() {
     return;
   }
   
-  // If no data found, try one more time quickly
+  // If no data found, try one more time immediately (no delay)
   const lateHtmlData = await fetchTokenDataFromHTML(fullCoinId).catch(() => null);
   
   if (lateHtmlData && (lateHtmlData.name || lateHtmlData.image_uri)) {
@@ -577,7 +570,7 @@ async function initTokenLoader() {
     return;
   }
   
-  // Only show generated data after 5 seconds if still no real data
+  // Only show generated data after 8 seconds if still no real data (longer wait)
   setTimeout(() => {
     if (!window._tokenLoaderHasRealData) {
       window._tokenLoaderFinishedLoading = true;
@@ -586,7 +579,7 @@ async function initTokenLoader() {
         updatePageWithTokenData(generatedData, mintAddress);
       }
     }
-  }, 5000); // Show generated data after 5 seconds if no real data
+  }, 8000); // Show generated data after 8 seconds if no real data
 }
 
 function getTokenImageUrl(tokenData, mintAddress) {

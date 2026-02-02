@@ -178,30 +178,49 @@ const server = http.createServer((req, res) => {
       return;
     }
     
-    // Proxy the request through proxy-server
+    // Proxy the request through proxy-server with timeout
     try {
       const proxyPort = process.env.PROXY_PORT || 3001;
       const proxyUrl = `http://localhost:${proxyPort}/proxy?url=${encodeURIComponent(targetUrl)}`;
-      const proxyReq = http.get(proxyUrl, (proxyRes) => {
+      
+      const proxyReq = http.get(proxyUrl, { timeout: 3000 }, (proxyRes) => {
         res.writeHead(proxyRes.statusCode, {
           'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream',
           'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
           'Cache-Control': 'public, max-age=3600'
         });
         proxyRes.pipe(res);
       });
       
+      proxyReq.on('timeout', () => {
+        proxyReq.destroy();
+        if (!res.headersSent) {
+          res.writeHead(504, { 'Content-Type': 'text/plain' });
+          res.end('Proxy timeout');
+        }
+      });
+      
       proxyReq.on('error', (err) => {
         console.error('[SERVER] Proxy error:', err.message);
         if (!res.headersSent) {
-          res.writeHead(500, { 'Content-Type': 'text/plain' });
+          res.writeHead(500, { 
+            'Content-Type': 'text/plain',
+            'Access-Control-Allow-Origin': '*'
+          });
           res.end('Proxy error');
         }
       });
     } catch (err) {
       console.error('[SERVER] Proxy setup error:', err.message);
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end('Proxy setup error');
+      if (!res.headersSent) {
+        res.writeHead(500, { 
+          'Content-Type': 'text/plain',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end('Proxy setup error');
+      }
     }
     return;
   }

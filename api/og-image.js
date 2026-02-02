@@ -167,17 +167,31 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
       const bannerUrl = `https://frontend-api-v3.pump.fun/coins/add-banner?coinId=${encodeURIComponent(fullCoinId)}`;
       console.log('[OG IMAGE] generateWithSharp: Fetching banner from API:', bannerUrl);
       
-      const fetchPromise = fetchImage(bannerUrl);
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Banner fetch timeout')), 3000));
-      bannerBuffer = await Promise.race([fetchPromise, timeoutPromise]);
+      // Try to fetch banner - API might return JSON with image URL or the image itself
+      const bannerResponse = await fetchBannerFromAPI(bannerUrl);
       
-      if (bannerBuffer) {
-        console.log('[OG IMAGE] generateWithSharp: Successfully fetched banner from API, size:', bannerBuffer.length);
+      if (bannerResponse && bannerResponse.buffer) {
+        bannerBuffer = bannerResponse.buffer;
+        console.log('[OG IMAGE] generateWithSharp: Successfully fetched banner from API, size:', bannerBuffer.length, 'Content-Type:', bannerResponse.contentType);
+      } else if (bannerResponse && bannerResponse.imageUrl) {
+        // API returned JSON with image URL, fetch the actual image
+        console.log('[OG IMAGE] generateWithSharp: API returned image URL, fetching:', bannerResponse.imageUrl);
+        try {
+          const fetchPromise = fetchImage(bannerResponse.imageUrl);
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Banner image fetch timeout')), 3000));
+          bannerBuffer = await Promise.race([fetchPromise, timeoutPromise]);
+          if (bannerBuffer) {
+            console.log('[OG IMAGE] generateWithSharp: Successfully fetched banner image from URL, size:', bannerBuffer.length);
+          }
+        } catch (e) {
+          console.log('[OG IMAGE] generateWithSharp: Could not fetch banner image from URL:', e.message);
+        }
       } else {
         console.log('[OG IMAGE] generateWithSharp: Banner fetch returned null/empty');
       }
     } catch (e) {
       console.log('[OG IMAGE] generateWithSharp: Could not fetch banner from API (timeout or error):', e.message);
+      console.log('[OG IMAGE] generateWithSharp: Error stack:', e.stack);
       // Fallback to local banner if API fails
       const bannerPath = path.join(__dirname, '..', 'assets', 'twitter-banner.png');
       if (fs.existsSync(bannerPath)) {
@@ -380,6 +394,109 @@ function splitTextIntoLines(text, maxCharsPerLine = 20) {
   }
   
   return lines.length > 0 ? lines : [''];
+}
+
+async function fetchBannerFromAPI(url) {
+  return new Promise((resolve) => {
+    console.log('[OG IMAGE] fetchBannerFromAPI: Starting fetch for', url);
+    
+    const protocol = url.startsWith('https') ? https : http;
+    
+    const request = protocol.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json,image/*,*/*'
+      },
+      timeout: 3000
+    }, (res) => {
+      console.log('[OG IMAGE] fetchBannerFromAPI: Response status:', res.statusCode, 'Content-Type:', res.headers['content-type']);
+      
+      // Handle error status codes
+      if (res.statusCode !== 200) {
+        console.log('[OG IMAGE] fetchBannerFromAPI: API returned error status:', res.statusCode);
+        res.resume(); // Consume response to free up memory
+        resolve(null);
+        return;
+      }
+      
+      const contentType = res.headers['content-type'] || '';
+      const chunks = [];
+      
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        console.log('[OG IMAGE] fetchBannerFromAPI: Received data, size:', buffer.length);
+        
+        if (buffer.length === 0) {
+          console.log('[OG IMAGE] fetchBannerFromAPI: Empty response');
+          resolve(null);
+          return;
+        }
+        
+        // Check if response is JSON
+        if (contentType.includes('application/json') || contentType.includes('text/json')) {
+          try {
+            const jsonData = JSON.parse(buffer.toString());
+            console.log('[OG IMAGE] fetchBannerFromAPI: API returned JSON:', JSON.stringify(jsonData).substring(0, 200));
+            
+            // Try to find image URL in JSON response
+            const imageUrl = jsonData.banner || jsonData.image || jsonData.url || jsonData.bannerUrl || jsonData.imageUrl;
+            if (imageUrl) {
+              console.log('[OG IMAGE] fetchBannerFromAPI: Found image URL in JSON:', imageUrl);
+              resolve({ imageUrl });
+              return;
+            } else {
+              console.log('[OG IMAGE] fetchBannerFromAPI: No image URL found in JSON response');
+              resolve(null);
+              return;
+            }
+          } catch (e) {
+            console.log('[OG IMAGE] fetchBannerFromAPI: Error parsing JSON:', e.message);
+            resolve(null);
+            return;
+          }
+        }
+        
+        // Check if response is an image
+        if (contentType.includes('image/')) {
+          console.log('[OG IMAGE] fetchBannerFromAPI: Response is an image (Content-Type)');
+          resolve({ buffer, contentType });
+          return;
+        }
+        
+        // Try to validate it's actually an image by checking magic bytes
+        if (buffer.length > 2) {
+          const isJPEG = buffer[0] === 0xFF && buffer[1] === 0xD8;
+          const isPNG = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
+          const isGIF = buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46;
+          
+          if (isJPEG || isPNG || isGIF) {
+            console.log('[OG IMAGE] fetchBannerFromAPI: Response is an image (magic bytes detected)');
+            resolve({ buffer, contentType: isJPEG ? 'image/jpeg' : isPNG ? 'image/png' : 'image/gif' });
+            return;
+          }
+        }
+        
+        console.log('[OG IMAGE] fetchBannerFromAPI: Response is not an image or JSON with URL, Content-Type:', contentType);
+        resolve(null);
+      });
+      res.on('error', (err) => {
+        console.log('[OG IMAGE] fetchBannerFromAPI: Response error:', err.message);
+        resolve(null);
+      });
+    });
+    
+    request.on('error', (err) => {
+      console.log('[OG IMAGE] fetchBannerFromAPI: Request error:', err.message);
+      resolve(null);
+    });
+    
+    request.setTimeout(3000, () => {
+      request.destroy();
+      console.log('[OG IMAGE] fetchBannerFromAPI: Request timeout');
+      resolve(null);
+    });
+  });
 }
 
 function fetchImage(url, maxRedirects = 5) {

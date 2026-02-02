@@ -394,7 +394,7 @@ function fetchImage(url, maxRedirects = 5) {
 
           if (currentUrl.includes('images.pump.fun')) {
             console.log('[OG IMAGE] fetchImage: Direct fetch failed, trying proxy...');
-            const proxyUrl = `http:
+            const proxyUrl = `http://localhost:3001/proxy?url=${encodeURIComponent(currentUrl)}`;
             http.get(proxyUrl, (proxyRes) => {
 
               if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
@@ -450,7 +450,7 @@ function fetchImage(url, maxRedirects = 5) {
 
         if (currentUrl.includes('images.pump.fun')) {
           console.log('[OG IMAGE] fetchImage: Trying proxy fallback...');
-          const proxyUrl = `http:
+          const proxyUrl = `http://localhost:3001/proxy?url=${encodeURIComponent(currentUrl)}`;
           http.get(proxyUrl, (proxyRes) => {
             if (proxyRes.statusCode !== 200) {
               reject(new Error(`Proxy fetch failed: ${proxyRes.statusCode}`));

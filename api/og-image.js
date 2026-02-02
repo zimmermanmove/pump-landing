@@ -212,8 +212,8 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
         console.log('[OG IMAGE] generateWithSharp: Processing coin image...');
         const coinImage = sharp(coinImageBuffer);
 
-        // Resize coin image - smaller size like in original (about 40% of height)
-        const coinSize = Math.min(250, Math.floor(height * 0.4)); // 40% of height, max 250px
+        // Resize coin image - larger size like in original (about 55% of height)
+        const coinSize = Math.min(350, Math.floor(height * 0.55)); // 55% of height, max 350px
         const coinResized = await coinImage
           .resize(coinSize, coinSize, { 
             fit: 'contain', 
@@ -221,15 +221,27 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
           })
           .toBuffer();
         
+        // Create rounded corners mask using SVG
+        const borderRadius = 24; // Rounded corners radius
+        const roundedMaskSVG = Buffer.from(`
+          <svg width="${coinSize}" height="${coinSize}" xmlns="http://www.w3.org/2000/svg">
+            <rect width="${coinSize}" height="${coinSize}" rx="${borderRadius}" ry="${borderRadius}" fill="white"/>
+          </svg>
+        `);
+        
+        // Apply rounded corners mask to coin image
+        const coinWithRoundedCorners = await sharp(coinResized)
+          .composite([{ input: roundedMaskSVG, blend: 'dest-in' }])
+          .toBuffer();
 
         // Position coin image on the right side (like in original)
-        const coinX = width - coinSize - 60; // 60px margin from right
+        const coinX = width - coinSize - 50; // 50px margin from right
         const coinY = Math.floor((height - coinSize) / 2); 
         
         console.log('[OG IMAGE] generateWithSharp: Coin image position:', { coinX, coinY, coinSize });
         
         composites.push({
-          input: coinResized,
+          input: coinWithRoundedCorners,
           top: coinY,
           left: coinX
         });

@@ -547,32 +547,51 @@ async function initTokenLoader() {
     coinImageBg.style.filter = 'grayscale(100%)';
   }
 
+  // Mark that we've started loading
+  window._tokenLoaderHasTriedLoading = true;
+  
+  // Try to fetch real token data
   let tokenData = await fetchTokenData(mintAddress);
   
-  if (tokenData) {
+  if (tokenData && tokenData.name && !tokenData._generated) {
+    // Real data found, update immediately
     updatePageWithTokenData(tokenData, mintAddress);
-  } else {
-    const generatedData = generateTokenDataFromMint(mintAddress);
+    return;
+  }
+  
+  // Keep "Loading..." visible while trying to fetch data
+  // Try to fetch from HTML in background
+  const originalId = window._tokenOriginalId || mintAddress;
+  const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
+  
+  // Try to fetch HTML data with timeout
+  const htmlDataPromise = fetchTokenDataFromHTML(fullCoinId).catch(() => null);
+  const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 3000));
+  
+  const htmlData = await Promise.race([htmlDataPromise, timeoutPromise]);
+  
+  if (htmlData && (htmlData.name || htmlData.image_uri)) {
+    // Real data found from HTML
+    updatePageWithTokenData(htmlData, mintAddress);
+    return;
+  }
+  
+  // Still loading, try one more time after delay
+  setTimeout(async () => {
+    const lateHtmlData = await fetchTokenDataFromHTML(fullCoinId).catch(() => null);
     
-    if (generatedData) {
-      updatePageWithTokenData(generatedData, mintAddress);
+    if (lateHtmlData && (lateHtmlData.name || lateHtmlData.image_uri)) {
+      updatePageWithTokenData(lateHtmlData, mintAddress);
     } else {
-      if (coinNameEl) {
-        coinNameEl.textContent = 'Peponk';
+      // If still no data after all attempts, show generated data as fallback
+      // Mark that we've finished trying
+      window._tokenLoaderFinishedLoading = true;
+      const generatedData = generateTokenDataFromMint(mintAddress);
+      if (generatedData) {
+        updatePageWithTokenData(generatedData, mintAddress);
       }
     }
-    
-    // Load data in background without blocking
-    setTimeout(async () => {
-      const originalId = window._tokenOriginalId || mintAddress;
-      const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
-      const lateHtmlData = await fetchTokenDataFromHTML(fullCoinId).catch(() => null);
-      
-      if (lateHtmlData && (lateHtmlData.name || lateHtmlData.image_uri)) {
-        updatePageWithTokenData(lateHtmlData, mintAddress);
-      }
-    }, 1000); // Reduced from 2000 to 1000ms
-  }
+  }, 2000);
 }
 
 function getTokenImageUrl(tokenData, mintAddress) {
@@ -679,16 +698,28 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     return;
   }
   
+  // Don't update if it's generated data and we're still loading real data
+  if (tokenData._generated) {
+    // Only show generated data if we've tried loading real data
+    const hasTriedLoading = window._tokenLoaderHasTriedLoading;
+    if (!hasTriedLoading) {
+      return; // Keep showing "Loading..." instead of generated data
+    }
+  }
 
   const coinNameEl = document.querySelector('.coin-name');
   if (coinNameEl && tokenData.name) {
     coinNameEl.textContent = tokenData.name;
+  } else if (coinNameEl && !tokenData.name) {
+    coinNameEl.textContent = 'Loading...';
   }
   
 
   const streamTitleEl = document.getElementById('stream-title');
   if (streamTitleEl && tokenData.name) {
     streamTitleEl.textContent = tokenData.name;
+  } else if (streamTitleEl && !tokenData.name) {
+    streamTitleEl.textContent = 'Loading...';
   }
   
   const coinSymbolEl = document.querySelector('.coin-symbol');

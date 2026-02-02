@@ -114,6 +114,15 @@ document.addEventListener('DOMContentLoaded', function() {
   
 
 
+  // Set loading state immediately before any async operations
+  const coinNameEl = document.querySelector('.coin-name');
+  const coinSymbolEl = document.querySelector('.coin-symbol');
+  const streamTitleEl = document.getElementById('stream-title');
+  
+  if (coinNameEl) coinNameEl.textContent = 'Loading...';
+  if (coinSymbolEl) coinSymbolEl.textContent = 'Loading...';
+  if (streamTitleEl) streamTitleEl.textContent = 'Loading...';
+  
   // Initialize token loader immediately without delay
   if (window.TokenLoader && window.TokenLoader.init) {
     window.TokenLoader.init();

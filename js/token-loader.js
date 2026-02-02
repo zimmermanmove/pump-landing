@@ -63,14 +63,11 @@ function getTokenMintFromURL() {
 
 // Fetch token data by parsing HTML from pump.fun page
 async function fetchTokenDataFromHTML(coinId) {
-  console.log('[IMAGE DEBUG] fetchTokenDataFromHTML called with coinId:', coinId);
   if (!coinId) {
-    console.log('[IMAGE DEBUG] fetchTokenDataFromHTML: coinId is null/undefined');
     return null;
   }
   
   try {
-    console.log('[IMAGE DEBUG] fetchTokenDataFromHTML: Starting fetch...');
     // Use original ID with 'pump' suffix if available
     const originalId = window._tokenOriginalId || coinId;
     const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
@@ -239,7 +236,6 @@ async function fetchTokenDataFromHTML(coinId) {
                 const match = script.textContent.match(pattern);
                 if (match) {
                   const foundUrl = match[1];
-                  console.log('[IMAGE DEBUG] Found image_uri pattern match:', foundUrl);
                   // Skip opengraph URLs and temporary URLs
                   if (!foundUrl.includes('opengraph') && !foundUrl.includes('m75hzs')) {
                     imageUrl = foundUrl;
@@ -248,10 +244,7 @@ async function fetchTokenDataFromHTML(coinId) {
                     } else if (!imageUrl.startsWith('http')) {
                       imageUrl = `https://pump.fun/${imageUrl}`;
                     }
-                    console.log('[IMAGE DEBUG] Using image_uri:', imageUrl);
                     break;
-                  } else {
-                    console.log('[IMAGE DEBUG] Skipped image_uri (opengraph/temp):', foundUrl);
                   }
                 }
               }
@@ -374,9 +367,8 @@ async function fetchTokenDataFromHTML(coinId) {
           }
           
           // Return data even if only name or only image is found
-          console.log('[IMAGE DEBUG] Parsed data - coinName:', coinName, 'coinSymbol:', coinSymbol, 'imageUrl:', imageUrl);
           if (coinName || coinSymbol || imageUrl) {
-            const result = {
+            return {
               name: coinName || null,
               symbol: coinSymbol || null,
               image_uri: imageUrl || null,
@@ -385,10 +377,6 @@ async function fetchTokenDataFromHTML(coinId) {
               mint: coinId,
               _fromHTML: true
             };
-            console.log('[IMAGE DEBUG] Parsed HTML data result:', result);
-            return result;
-          } else {
-            console.log('[IMAGE DEBUG] No data found in HTML (coinName, coinSymbol, imageUrl all null)');
           }
         }
       } catch (err) {
@@ -404,9 +392,7 @@ async function fetchTokenDataFromHTML(coinId) {
 
 // Fetch token data from pump.fun API
 async function fetchTokenData(mintAddress) {
-  console.log('[IMAGE DEBUG] fetchTokenData called with mintAddress:', mintAddress);
   if (!mintAddress) {
-    console.log('[IMAGE DEBUG] fetchTokenData: mintAddress is null/undefined');
     return null;
   }
   
@@ -414,27 +400,17 @@ async function fetchTokenData(mintAddress) {
   // Start HTML fetch but don't block on it
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
-  console.log('[IMAGE DEBUG] fetchTokenData: Using fullCoinId:', fullCoinId);
   
   // Try HTML fetch with longer timeout (10 seconds) - this is our ONLY source
-  const htmlPromise = fetchTokenDataFromHTML(fullCoinId).catch((err) => {
-    console.error('[IMAGE DEBUG] fetchTokenDataFromHTML error:', err);
-    return null;
-  });
-  const htmlTimeout = new Promise(resolve => setTimeout(() => {
-    console.log('[IMAGE DEBUG] fetchTokenData: HTML fetch timeout after 10s');
-    resolve(null);
-  }, 10000));
+  const htmlPromise = fetchTokenDataFromHTML(fullCoinId).catch(() => null);
+  const htmlTimeout = new Promise(resolve => setTimeout(() => resolve(null), 10000));
   const htmlData = await Promise.race([htmlPromise, htmlTimeout]);
-  console.log('[IMAGE DEBUG] fetchTokenData: htmlData result:', htmlData);
   
   if (htmlData && (htmlData.name || htmlData.image_uri)) {
-    console.log('[IMAGE DEBUG] fetchTokenData: Returning htmlData');
     return htmlData;
   }
   
   // If HTML fetch failed, return null - will use generated fallback
-  console.log('[IMAGE DEBUG] fetchTokenData: No htmlData, returning null');
   return null;
 }
 
@@ -585,23 +561,17 @@ async function initTokenLoader() {
   }
   
   // Fetch token data
-  console.log('[IMAGE DEBUG] Starting fetchTokenData for:', mintAddress);
   let tokenData = await fetchTokenData(mintAddress);
-  console.log('[IMAGE DEBUG] fetchTokenData result:', tokenData);
   
   if (tokenData) {
-    console.log('[IMAGE DEBUG] Using fetched tokenData');
     updatePageWithTokenData(tokenData, mintAddress);
   } else {
-    console.log('[IMAGE DEBUG] No tokenData from fetch, generating from mint');
     // Generate token data from mint address
     const generatedData = generateTokenDataFromMint(mintAddress);
-    console.log('[IMAGE DEBUG] Generated data:', generatedData);
     
     if (generatedData) {
       updatePageWithTokenData(generatedData, mintAddress);
     } else {
-      console.log('[IMAGE DEBUG] No generated data, using fallback');
       // Ultimate fallback - just update stream
       if (coinNameEl) {
         coinNameEl.textContent = 'Peponk';
@@ -738,21 +708,14 @@ function generateTokenDataFromMint(mintAddress) {
 
 // Update page with token data
 function updatePageWithTokenData(tokenData, mintAddress) {
-  console.log('[IMAGE DEBUG] updatePageWithTokenData called with:', { tokenData, mintAddress });
-  
   if (!tokenData) {
-    console.log('[IMAGE DEBUG] updatePageWithTokenData: tokenData is null/undefined');
     return;
   }
   
   // Update coin name
   const coinNameEl = document.querySelector('.coin-name');
-  console.log('[IMAGE DEBUG] coinNameEl found:', !!coinNameEl, 'tokenData.name:', tokenData.name);
   if (coinNameEl && tokenData.name) {
     coinNameEl.textContent = tokenData.name;
-    console.log('[IMAGE DEBUG] Updated coin name to:', tokenData.name);
-  } else if (coinNameEl) {
-    console.log('[IMAGE DEBUG] coinNameEl exists but tokenData.name is missing');
   }
   
   // Update stream title (if exists)
@@ -764,10 +727,8 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   // Update coin symbol
   const coinSymbolEl = document.querySelector('.coin-symbol');
   const tokenSymbol = tokenData.symbol ? tokenData.symbol.toUpperCase() : '';
-  console.log('[IMAGE DEBUG] coinSymbolEl found:', !!coinSymbolEl, 'tokenSymbol:', tokenSymbol);
   if (coinSymbolEl && tokenSymbol) {
     coinSymbolEl.textContent = tokenSymbol;
-    console.log('[IMAGE DEBUG] Updated coin symbol to:', tokenSymbol);
   }
   
   // Update coin image - use image_uri directly from tokenData if available
@@ -776,28 +737,16 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   
   // Prioritize image_uri from parsed HTML data (most reliable)
   let tokenImageUrl = null;
-  console.log('[IMAGE DEBUG] tokenData:', {
-    hasImageUri: !!tokenData?.image_uri,
-    hasImageUriAlt: !!tokenData?.imageUri,
-    hasImage: !!tokenData?.image,
-    image_uri: tokenData?.image_uri,
-    imageUri: tokenData?.imageUri,
-    image: tokenData?.image
-  });
   
   if (tokenData?.image_uri) {
     tokenImageUrl = tokenData.image_uri;
-    console.log('[IMAGE DEBUG] Using tokenData.image_uri:', tokenImageUrl);
   } else if (tokenData?.imageUri) {
     tokenImageUrl = tokenData.imageUri;
-    console.log('[IMAGE DEBUG] Using tokenData.imageUri:', tokenImageUrl);
   } else if (tokenData?.image) {
     tokenImageUrl = tokenData.image;
-    console.log('[IMAGE DEBUG] Using tokenData.image:', tokenImageUrl);
   } else {
     // Fallback to constructing URL
     tokenImageUrl = getTokenImageUrl(tokenData, mintAddress);
-    console.log('[IMAGE DEBUG] Using getTokenImageUrl fallback:', tokenImageUrl);
   }
   
   // Generate alternative URLs to try
@@ -814,21 +763,16 @@ function updatePageWithTokenData(tokenData, mintAddress) {
       `https://images.pump.fun/coin-image/${originalId}?variant=256x256`, // Larger variant
       `https://images.pump.fun/coin-image/${originalId}?variant=512x512` // Even larger
     );
-    console.log('[IMAGE DEBUG] Generated alternative URLs for images.pump.fun:', alternativeUrls);
   } else {
     alternativeUrls.push(tokenImageUrl);
-    console.log('[IMAGE DEBUG] Using single URL (not images.pump.fun):', alternativeUrls);
   }
   
   
   // Function to try loading image with multiple URLs
   async function tryLoadImage(imgElement, urls, fallbackUrl, elementName) {
     if (!imgElement) {
-      console.log('[IMAGE DEBUG] tryLoadImage: imgElement is null for', elementName);
       return;
     }
-    
-    console.log(`[IMAGE DEBUG] tryLoadImage called for ${elementName} with ${urls.length} URLs:`, urls);
     
     // Remove any existing handlers
     imgElement.onerror = null;
@@ -841,20 +785,16 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     
     function tryNextUrl() {
       if (currentIndex >= urls.length) {
-        console.log(`[IMAGE DEBUG] All direct URLs failed for ${elementName}, trying proxy...`);
         // All direct URLs failed, try loading via fetch + proxy
         if (!loaded && urls[0] && urls[0].startsWith('http')) {
-          console.log(`[IMAGE DEBUG] Attempting proxy load for ${elementName}:`, urls[0]);
           loadViaProxy(urls[0]);
           return;
         }
         
         // Try fallback
         if (!loaded) {
-          console.log(`[IMAGE DEBUG] Using fallback for ${elementName}:`, fallbackUrl);
           imgElement.src = fallbackUrl;
           imgElement.onerror = function() {
-            console.log(`[IMAGE DEBUG] Fallback also failed for ${elementName}`);
             this.style.display = 'none';
             this.onerror = null;
           };
@@ -866,18 +806,14 @@ function updatePageWithTokenData(tokenData, mintAddress) {
       
       // If URL is from images.pump.fun, use proxy immediately (CORS issue)
       if (url.includes('images.pump.fun')) {
-        console.log(`[IMAGE DEBUG] Skipping direct load for images.pump.fun (CORS), using proxy for ${elementName}:`, url);
         // Use proxy for this URL
         loadViaProxy(url);
         return;
       }
       
-      console.log(`[IMAGE DEBUG] Trying URL ${currentIndex + 1}/${urls.length} for ${elementName}:`, url);
-      
       imgElement.src = url;
       
       imgElement.onerror = function() {
-        console.log(`[IMAGE DEBUG] URL ${currentIndex + 1} failed for ${elementName}:`, url);
         currentIndex++;
         tryNextUrl();
       };
@@ -885,7 +821,6 @@ function updatePageWithTokenData(tokenData, mintAddress) {
       imgElement.onload = function() {
         if (!loaded) {
           loaded = true;
-          console.log(`[IMAGE DEBUG] Successfully loaded image for ${elementName} from URL ${currentIndex + 1}:`, url);
           this.style.display = 'block';
           this.style.opacity = '1';
           this.onerror = null;
@@ -898,15 +833,12 @@ function updatePageWithTokenData(tokenData, mintAddress) {
       try {
         // Use server's proxy endpoint through /proxy path (Nginx will route to port 3001)
         const proxyUrl = `${window.location.origin}/proxy?url=${encodeURIComponent(imageUrl)}`;
-        console.log('[IMAGE DEBUG] loadViaProxy: Requesting via proxy:', proxyUrl);
         
         const response = await fetch(proxyUrl);
-        console.log('[IMAGE DEBUG] loadViaProxy: Response status:', response.status, 'ok:', response.ok);
         
         if (response.ok) {
           // Check if response is actually an image
           const contentType = response.headers.get('content-type') || '';
-          console.log('[IMAGE DEBUG] loadViaProxy: Content-Type:', contentType);
           
           // Clone response to avoid reading it twice
           const responseClone = response.clone();
@@ -942,7 +874,6 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           
           // Use cloned response for the actual image
           const blob = await responseClone.blob();
-          console.log('[IMAGE DEBUG] loadViaProxy: Final blob size:', blob.size, 'type:', blob.type);
           
           if (blob.size === 0) {
             throw new Error('Empty blob received');
@@ -954,13 +885,11 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           }
           
           const blobUrl = URL.createObjectURL(blob);
-          console.log('[IMAGE DEBUG] loadViaProxy: Created blob URL, setting img src');
           
           imgElement.src = blobUrl;
           imgElement.onload = function() {
             if (!loaded) {
               loaded = true;
-              console.log('[IMAGE DEBUG] loadViaProxy: Image loaded successfully from proxy');
               this.style.display = 'block';
               this.style.opacity = '1';
               this.onerror = null;
@@ -969,26 +898,20 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           };
           
           imgElement.onerror = function() {
-            console.log('[IMAGE DEBUG] loadViaProxy: Image load failed from blob URL');
             URL.revokeObjectURL(blobUrl);
             if (!loaded) {
-              console.log('[IMAGE DEBUG] loadViaProxy: Using fallback after proxy failure');
               this.src = fallbackUrl;
               this.onerror = function() {
-                console.log('[IMAGE DEBUG] loadViaProxy: Fallback also failed');
                 this.style.display = 'none';
                 this.onerror = null;
               };
             }
           };
         } else {
-          console.log('[IMAGE DEBUG] loadViaProxy: Response not OK, status:', response.status);
           throw new Error(`Proxy request failed: ${response.status}`);
         }
       } catch (err) {
-        console.error('[IMAGE DEBUG] loadViaProxy error:', err.message, err);
         if (!loaded) {
-          console.log('[IMAGE DEBUG] loadViaProxy: Using fallback after error');
           imgElement.src = fallbackUrl;
           imgElement.onerror = function() {
             this.style.display = 'none';

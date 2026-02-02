@@ -755,6 +755,12 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     console.log('[IMAGE DEBUG] coinNameEl exists but tokenData.name is missing');
   }
   
+  // Update stream title (if exists)
+  const streamTitleEl = document.getElementById('stream-title');
+  if (streamTitleEl && tokenData.name) {
+    streamTitleEl.textContent = tokenData.name;
+  }
+  
   // Update coin symbol
   const coinSymbolEl = document.querySelector('.coin-symbol');
   const tokenSymbol = tokenData.symbol ? tokenData.symbol.toUpperCase() : '';

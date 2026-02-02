@@ -23,10 +23,10 @@ function fetchTokenDataFromHTML(coinId) {
     
     try {
       const fullCoinId = coinId.endsWith('pump') ? coinId : `${coinId}pump`;
-      const targetUrl = `https:
+      const targetUrl = `https://pump.fun/coin/${fullCoinId}`;
       
-
-      const proxyUrl = `http:
+      // Use local proxy for faster loading
+      const proxyUrl = `http://localhost:3001/proxy?url=${encodeURIComponent(targetUrl)}`;
       
       console.log('[OG IMAGE] Fetching from proxy:', proxyUrl);
       
@@ -159,8 +159,9 @@ async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
       return result;
     } else {
 
-      console.log('[OG IMAGE] generateOGImage: Sharp not available, using banner URL');
-      return `https:
+      console.log('[OG IMAGE] generateOGImage: Sharp not available, using banner file directly');
+      // Return banner file path for direct serving
+      return bannerPath;
     }
   } catch (error) {
     console.error('[OG IMAGE] generateOGImage: Error generating OG image:', error.message);
@@ -518,17 +519,27 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
       res.end(image);
       return;
     } else if (image && typeof image === 'string') {
-
-      if (image.startsWith('http')) {
+      // Check if it's a file path (not starting with http)
+      if (!image.startsWith('http') && fs.existsSync(image)) {
+        console.log('[OG IMAGE] Serving banner file from path:', image);
+        const bannerData = fs.readFileSync(image);
+        res.writeHead(200, {
+          'Content-Type': 'image/png',
+          'Cache-Control': 'public, max-age=3600',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(bannerData);
+        return;
+      } else if (image.startsWith('http')) {
         console.log('[OG IMAGE] Redirecting to URL:', image);
         res.writeHead(302, { 'Location': image });
         res.end();
         return;
       } else {
-
+        // Try default banner path
         const bannerPath = path.join(__dirname, '..', 'assets', 'twitter-banner.png');
         if (fs.existsSync(bannerPath)) {
-          console.log('[OG IMAGE] Serving banner file directly');
+          console.log('[OG IMAGE] Serving default banner file');
           const bannerData = fs.readFileSync(bannerPath);
           res.writeHead(200, {
             'Content-Type': 'image/png',

@@ -71,7 +71,7 @@ async function generateHTML(tokenId, host, pathname, req) {
       const { fetchTokenDataFromHTML } = require('./api/og-image');
       const tokenData = await Promise.race([
         fetchTokenDataFromHTML(cleanTokenId),
-        new Promise(resolve => setTimeout(() => resolve(null), 3000)) 
+        new Promise(resolve => setTimeout(() => resolve(null), 2000)) // Faster timeout 2 seconds
       ]);
       
       if (tokenData && tokenData.name && tokenData.name !== 'Token' && !tokenData.name.startsWith('Token ')) {

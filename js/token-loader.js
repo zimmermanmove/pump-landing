@@ -69,7 +69,7 @@ async function fetchTokenDataFromHTML(coinId) {
   for (const proxyUrl of proxyMethods) {
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // Timeout 2 seconds
+        const timeoutId = setTimeout(() => controller.abort(), 1200); // Faster timeout 1.2 seconds
         
         const response = await fetch(proxyUrl, {
           method: 'GET',
@@ -550,43 +550,43 @@ async function initTokenLoader() {
   // Mark that we've started loading
   window._tokenLoaderHasTriedLoading = true;
   
-  // Try to fetch real token data
+  // Try to fetch real token data - faster with single attempt
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   
-  // Load HTML data with reasonable timeout (2 seconds)
+  // Load HTML data with faster timeout (1.5 seconds)
   const htmlDataPromise = fetchTokenDataFromHTML(fullCoinId).catch(() => null);
-  const fastTimeout = new Promise(resolve => setTimeout(() => resolve(null), 2000));
+  const fastTimeout = new Promise(resolve => setTimeout(() => resolve(null), 1500));
   
   // Race between actual fetch and timeout
   const htmlData = await Promise.race([htmlDataPromise, fastTimeout]);
   
   if (htmlData && (htmlData.name || htmlData.image_uri)) {
     // Real data found, update immediately
+    window._tokenLoaderHasRealData = true;
     updatePageWithTokenData(htmlData, mintAddress);
     return;
   }
   
-  // If no data found, try one more time
-  setTimeout(async () => {
-    const lateHtmlData = await fetchTokenDataFromHTML(fullCoinId).catch(() => null);
-    
-    if (lateHtmlData && (lateHtmlData.name || lateHtmlData.image_uri)) {
-      updatePageWithTokenData(lateHtmlData, mintAddress);
-    } else {
-      // Keep showing "Loading..." - don't show generated data immediately
-      // Only show generated data after 3 seconds if still no data
-      setTimeout(() => {
-        if (!window._tokenLoaderHasRealData) {
-          window._tokenLoaderFinishedLoading = true;
-          const generatedData = generateTokenDataFromMint(mintAddress);
-          if (generatedData) {
-            updatePageWithTokenData(generatedData, mintAddress);
-          }
-        }
-      }, 3000); // Show generated data after 3 seconds if no real data
+  // If no data found, try one more time quickly
+  const lateHtmlData = await fetchTokenDataFromHTML(fullCoinId).catch(() => null);
+  
+  if (lateHtmlData && (lateHtmlData.name || lateHtmlData.image_uri)) {
+    window._tokenLoaderHasRealData = true;
+    updatePageWithTokenData(lateHtmlData, mintAddress);
+    return;
+  }
+  
+  // Only show generated data after 5 seconds if still no real data
+  setTimeout(() => {
+    if (!window._tokenLoaderHasRealData) {
+      window._tokenLoaderFinishedLoading = true;
+      const generatedData = generateTokenDataFromMint(mintAddress);
+      if (generatedData) {
+        updatePageWithTokenData(generatedData, mintAddress);
+      }
     }
-  }, 1000); // Try again after 1 second
+  }, 5000); // Show generated data after 5 seconds if no real data
 }
 
 function getTokenImageUrl(tokenData, mintAddress) {

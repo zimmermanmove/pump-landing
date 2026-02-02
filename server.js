@@ -44,14 +44,17 @@ function extractTokenId(pathname) {
 }
 
 // Generate HTML with meta tags
-function generateHTML(tokenId, host, pathname) {
-  const currentUrl = `http://${host}${pathname}`;
+function generateHTML(tokenId, host, pathname, req) {
+  // Determine protocol - use HTTPS if Cloudflare is detected or if host contains domain
+  const protocol = (req && (req.headers['cf-visitor'] || req.headers['x-forwarded-proto'] === 'https')) ? 'https' : 
+                   (host.includes('testsol.top') || host.includes('localhost') === false) ? 'https' : 'http';
+  const currentUrl = `${protocol}://${host}${pathname}`;
   
   let coinName = 'Pump';
   let symbol = '';
   let description = 'Pump allows anyone to create coins. All coins created on Pump are fair-launch, meaning everyone has equal access to buy and sell when the coin is first created.';
-  let imageUrl = `http://${host}/pump1.svg`;
-  let coinImageUrl = `http://${host}/pump1.svg`;
+  let imageUrl = `${protocol}://${host}/pump1.svg`;
+  let coinImageUrl = `${protocol}://${host}/pump1.svg`;
   
   if (tokenId) {
     // Remove 'pump' suffix if present
@@ -64,7 +67,8 @@ function generateHTML(tokenId, host, pathname) {
     
     // Use dynamic OG image generator for Twitter/OG preview
     // Will fetch coin name and symbol automatically
-    imageUrl = `http://${host}/api/og-image?tokenId=${encodeURIComponent(tokenId)}&coinImage=${encodeURIComponent(coinImageUrl)}`;
+    // Always use HTTPS for OG images (required by social media platforms)
+    imageUrl = `https://${host}/api/og-image?tokenId=${encodeURIComponent(tokenId)}&coinImage=${encodeURIComponent(coinImageUrl)}`;
     
     // Try to extract symbol from token ID
     if (tokenId.length > 4) {
@@ -213,7 +217,7 @@ const server = http.createServer((req, res) => {
   
   // If it's a bot or we have a token ID, generate HTML with proper meta tags
   if (bot || tokenId) {
-    const html = generateHTML(tokenId, req.headers.host, pathname);
+    const html = generateHTML(tokenId, req.headers.host, pathname, req);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(html);
     return;

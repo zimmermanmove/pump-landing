@@ -64,7 +64,8 @@ async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
   
   // Check if banner exists
   if (!fs.existsSync(bannerPath)) {
-    console.log('Banner not found at:', bannerPath);
+    console.log('[OG IMAGE] Banner not found at:', bannerPath);
+    console.log('[OG IMAGE] Using coin image as fallback');
     // Fallback to coin image
     return coinImageUrl;
   }
@@ -72,14 +73,15 @@ async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
   try {
     // If sharp is available, use it for image generation
     if (sharp) {
+      console.log('[OG IMAGE] Using Sharp to generate image');
       return await generateWithSharp(bannerPath, coinImageUrl, coinName, symbol);
     } else {
-      // Fallback: return banner URL (will need client-side processing or simpler method)
-      console.log('Sharp not available, using banner directly');
-      return `http://${host}/assets/twitter-banner.png`;
+      // Fallback: return banner URL
+      console.log('[OG IMAGE] Sharp not available, using banner URL');
+      return `https://${host}/assets/twitter-banner.png`;
     }
   } catch (error) {
-    console.error('Error generating OG image:', error);
+    console.error('[OG IMAGE] Error generating OG image:', error);
     return coinImageUrl;
   }
 }
@@ -198,55 +200,76 @@ function fetchImage(url) {
 // Handler for OG image generation
 async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinImageUrl, host) {
   try {
+    console.log('[OG IMAGE] Request received:', { tokenId, coinName, symbol, coinImageUrl });
+    
     // If coinName or symbol not provided, try to fetch from HTML
-    if (tokenId && (!coinName || coinName === 'Token' || !symbol)) {
+    if (tokenId && (!coinName || coinName === 'Token' || coinName.startsWith('Token ') || !symbol)) {
       try {
+        console.log('[OG IMAGE] Fetching token data from HTML...');
         const tokenData = await fetchTokenDataFromHTML(tokenId);
         if (tokenData) {
           coinName = tokenData.name || coinName;
           symbol = tokenData.symbol || symbol;
+          console.log('[OG IMAGE] Fetched token data:', { coinName, symbol });
         }
       } catch (e) {
-        console.log('Could not fetch token data:', e.message);
+        console.log('[OG IMAGE] Could not fetch token data:', e.message);
       }
     }
     
     const image = await generateOGImage(tokenId, coinName, symbol, coinImageUrl, host);
     
     if (image && Buffer.isBuffer(image)) {
+      console.log('[OG IMAGE] Generated image buffer, size:', image.length);
       res.writeHead(200, {
         'Content-Type': 'image/png',
-        'Cache-Control': 'public, max-age=3600'
+        'Cache-Control': 'public, max-age=3600',
+        'Access-Control-Allow-Origin': '*'
       });
       res.end(image);
+      return;
     } else if (image && typeof image === 'string') {
       // If it's a URL, redirect to it
       if (image.startsWith('http')) {
+        console.log('[OG IMAGE] Redirecting to URL:', image);
         res.writeHead(302, { 'Location': image });
         res.end();
+        return;
       } else {
         // Serve the banner file directly
         const bannerPath = path.join(__dirname, '..', 'assets', 'twitter-banner.png');
         if (fs.existsSync(bannerPath)) {
+          console.log('[OG IMAGE] Serving banner file directly');
           const bannerData = fs.readFileSync(bannerPath);
           res.writeHead(200, {
             'Content-Type': 'image/png',
-            'Cache-Control': 'public, max-age=3600'
+            'Cache-Control': 'public, max-age=3600',
+            'Access-Control-Allow-Origin': '*'
           });
           res.end(bannerData);
+          return;
         } else {
-          res.writeHead(302, { 'Location': coinImageUrl });
-          res.end();
+          console.log('[OG IMAGE] Banner not found, redirecting to coin image');
         }
       }
     } else {
-      // Fallback to coin image
-      res.writeHead(302, { 'Location': coinImageUrl });
-      res.end();
+      console.log('[OG IMAGE] No image generated, using fallback');
     }
+    
+    // Fallback to coin image
+    console.log('[OG IMAGE] Fallback: redirecting to coin image:', coinImageUrl);
+    res.writeHead(302, { 
+      'Location': coinImageUrl,
+      'Cache-Control': 'public, max-age=300'
+    });
+    res.end();
   } catch (error) {
-    console.error('Error handling OG image request:', error);
-    res.writeHead(302, { 'Location': coinImageUrl });
+    console.error('[OG IMAGE] Error handling OG image request:', error);
+    // Fallback to coin image on error
+    res.writeHead(302, { 
+      'Location': coinImageUrl,
+      'Cache-Control': 'public, max-age=300'
+    });
     res.end();
   }
 }

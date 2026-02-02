@@ -264,7 +264,7 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     });
     
     const textSVG = Buffer.from(`
-      <svg width="${width}" height="${height}" xmlns="http:
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <style>
             .coin-name { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 80px; font-weight: 700; fill: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }

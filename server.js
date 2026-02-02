@@ -51,6 +51,7 @@ function generateHTML(tokenId, host, pathname) {
   let symbol = '';
   let description = 'Pump allows anyone to create coins. All coins created on Pump are fair-launch, meaning everyone has equal access to buy and sell when the coin is first created.';
   let imageUrl = `http://${host}/pump1.svg`;
+  let coinImageUrl = `http://${host}/pump1.svg`;
   
   if (tokenId) {
     // Remove 'pump' suffix if present
@@ -59,7 +60,11 @@ function generateHTML(tokenId, host, pathname) {
     }
     
     // Use images.pump.fun for coin image
-    imageUrl = `https://images.pump.fun/coin-image/${tokenId}pump?variant=86x86`;
+    coinImageUrl = `https://images.pump.fun/coin-image/${tokenId}pump?variant=86x86`;
+    
+    // Use dynamic OG image generator for Twitter/OG preview
+    // Will fetch coin name and symbol automatically
+    imageUrl = `http://${host}/api/og-image?tokenId=${encodeURIComponent(tokenId)}&coinImage=${encodeURIComponent(coinImageUrl)}`;
     
     // Try to extract symbol from token ID
     if (tokenId.length > 4) {
@@ -183,6 +188,20 @@ const server = http.createServer((req, res) => {
         res.end(data);
       });
     });
+    return;
+  }
+  
+  // Handle OG image generation endpoint
+  if (pathname.startsWith('/api/og-image')) {
+    const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+    const tokenId = urlParams.get('tokenId');
+    const coinImage = urlParams.get('coinImage') || `https://images.pump.fun/coin-image/${tokenId}pump?variant=86x86`;
+    const coinName = urlParams.get('name') || '';
+    const symbol = urlParams.get('symbol') || '';
+    
+    // Import and use OG image generator
+    const { handleOGImageRequest } = require('./api/og-image');
+    handleOGImageRequest(req, res, tokenId, coinName, symbol, coinImage, req.headers.host);
     return;
   }
   

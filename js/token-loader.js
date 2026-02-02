@@ -1008,20 +1008,30 @@ function updateSocialMetaTags(tokenData, tokenSymbol, mintAddress) {
           const currentUrl = window.location.href;
           let imageUrl = '';
           const originalId = window._tokenOriginalId || mintAddress;
+          let coinImageUrl = '';
+          
           if (originalId) {
             const coinIdForImage = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
-            imageUrl = `https://images.pump.fun/coin-image/${coinIdForImage}?variant=86x86`;
+            coinImageUrl = `https://images.pump.fun/coin-image/${coinIdForImage}?variant=86x86`;
           } else {
             const origin = window.location.origin;
-            imageUrl = origin + '/pump1.svg';
+            coinImageUrl = origin + '/pump1.svg';
           }
           
-          if (imageUrl && !imageUrl.startsWith('http')) {
-            imageUrl = window.location.origin + imageUrl;
+          if (coinImageUrl && !coinImageUrl.startsWith('http')) {
+            coinImageUrl = window.location.origin + coinImageUrl;
           }
           
-          if (imageUrl && imageUrl.startsWith('//')) {
-            imageUrl = window.location.protocol + imageUrl;
+          if (coinImageUrl && coinImageUrl.startsWith('//')) {
+            coinImageUrl = window.location.protocol + coinImageUrl;
+          }
+          
+          // Use OG image API with banner, coin icon and name
+          if (coinName && symbol && originalId) {
+            const cleanTokenId = originalId.endsWith('pump') ? originalId.slice(0, -4) : originalId;
+            imageUrl = `${window.location.origin}/api/og-image?tokenId=${encodeURIComponent(cleanTokenId)}&name=${encodeURIComponent(coinName)}&symbol=${encodeURIComponent(symbol)}&coinImage=${encodeURIComponent(coinImageUrl)}`;
+          } else {
+            imageUrl = coinImageUrl;
           }
   const ogTitle = document.getElementById('og-title');
   const ogDescription = document.getElementById('og-description');

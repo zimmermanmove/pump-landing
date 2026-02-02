@@ -206,7 +206,8 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
         console.log('[OG IMAGE] generateWithSharp: Processing coin image...');
         const coinImage = sharp(coinImageBuffer);
 
-        const coinSize = 450;
+        // Resize coin image - make it larger and position on right side like in screenshot
+        const coinSize = Math.min(500, Math.floor(height * 0.7)); // 70% of height, max 500px
         const coinResized = await coinImage
           .resize(coinSize, coinSize, { 
             fit: 'contain', 
@@ -215,7 +216,8 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
           .toBuffer();
         
 
-        const coinX = width - coinSize - 80; 
+        // Position coin image on the right side (like in screenshot)
+        const coinX = width - coinSize - 100; // More margin from right 
         const coinY = Math.floor((height - coinSize) / 2); 
         
         console.log('[OG IMAGE] generateWithSharp: Coin image position:', { coinX, coinY, coinSize });
@@ -239,12 +241,14 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     const textCenterY = Math.floor(height / 2);
     
 
-    const nameLines = splitTextIntoLines(coinName || 'Token', 15);
-    const lineHeight = 85; 
+    // Text positioning - left side like in screenshot
+    const nameLines = splitTextIntoLines(coinName || 'Token', 20);
+    const lineHeight = 90; // Slightly larger line height 
     const nameStartY = textCenterY - (nameLines.length - 1) * lineHeight / 2;
     
 
-    const symbolY = nameStartY + nameLines.length * lineHeight + 20;
+    // Symbol below name
+    const symbolY = nameStartY + nameLines.length * lineHeight + 30;
     
     console.log('[OG IMAGE] generateWithSharp: Text positions:', { nameStartY, symbolY, nameLines, coinName, symbol });
     
@@ -252,21 +256,21 @@ async function generateWithSharp(bannerPath, coinImageUrl, coinName, symbol) {
     let nameTextSVG = '';
     nameLines.forEach((line, index) => {
       const yPos = nameStartY + index * lineHeight;
-      nameTextSVG += `<tspan x="80" y="${yPos}" dominant-baseline="middle">${escapeXml(line)}</tspan>`;
+      nameTextSVG += `<tspan x="100" y="${yPos}" dominant-baseline="middle">${escapeXml(line)}</tspan>`;
     });
     
     const textSVG = Buffer.from(`
       <svg width="${width}" height="${height}" xmlns="http:
         <defs>
           <style>
-            .coin-name { font-family: Arial, sans-serif; font-size: 72px; font-weight: bold; fill: white; }
-            .coin-symbol { font-family: Arial, sans-serif; font-size: 48px; fill: #86EFAC; }
+            .coin-name { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 80px; font-weight: 700; fill: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+            .coin-symbol { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 52px; font-weight: 600; fill: #86EFAC; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
           </style>
         </defs>
-        <text x="80" y="${nameStartY}" class="coin-name">
+        <text x="100" y="${nameStartY}" class="coin-name">
           ${nameTextSVG}
         </text>
-        <text x="80" y="${symbolY}" class="coin-symbol" dominant-baseline="middle">
+        <text x="100" y="${symbolY}" class="coin-symbol" dominant-baseline="middle">
           ${escapeXml(symbol || '')}
         </text>
       </svg>

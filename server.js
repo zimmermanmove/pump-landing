@@ -102,6 +102,12 @@ async function generateHTML(tokenId, host, pathname, req) {
     imageUrl = `https://images.pump.fun/coin-image/${cleanTokenId}pump?variant=86x86`;
   }
   
+  // Generate OG image with banner, coin icon and name
+  if (tokenId && coinName && symbol) {
+    const ogImageUrl = `${protocol}://${host}/api/og-image?tokenId=${encodeURIComponent(cleanTokenId)}&name=${encodeURIComponent(coinName)}&symbol=${encodeURIComponent(symbol)}&coinImage=${encodeURIComponent(imageUrl)}`;
+    imageUrl = ogImageUrl;
+  }
+  
   const title = tokenId ? `${coinName} (${symbol}) - Pump` : 'Pump - Create and trade coins';
   
 

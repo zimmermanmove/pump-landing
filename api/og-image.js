@@ -298,34 +298,61 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
     }
     
 
+    // Add Pump.Fun logo in top left corner (like in original)
+    try {
+      const logoPath = path.join(__dirname, '..', 'pump1.svg');
+      if (fs.existsSync(logoPath)) {
+        console.log('[OG IMAGE] generateWithSharp: Loading Pump.Fun logo from:', logoPath);
+        const logoBuffer = fs.readFileSync(logoPath);
+        const logoSize = 40; // Logo size
+        const logoX = 40; // 40px from left
+        const logoY = 40; // 40px from top
+        
+        // Resize logo
+        const logoResized = await sharp(logoBuffer)
+          .resize(logoSize, logoSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .toBuffer();
+        
+        composites.push({
+          input: logoResized,
+          top: logoY,
+          left: logoX
+        });
+        console.log('[OG IMAGE] generateWithSharp: Pump.Fun logo added');
+      }
+    } catch (e) {
+      console.log('[OG IMAGE] generateWithSharp: Could not load logo:', e.message);
+    }
 
+    // Text positioning - left side like in original pump.fun
+    // In original: symbol (Dolly) is large white, name (Dancing Goat) is smaller white below
     const textCenterY = Math.floor(height / 2);
     
-
-    // Text positioning - left side like in original
+    // Symbol (large white, top) - like "Dolly" in original
+    const symbolFontSize = 64;
+    const symbolY = textCenterY - 10; // Slightly above center
+    
+    // Name (smaller white, below symbol) - like "Dancing Goat" in original
     const nameLines = splitTextIntoLines(coinName || 'Token', 20);
-    const lineHeight = 70; // Smaller line height for compact look
-    const nameStartY = textCenterY - (nameLines.length - 1) * lineHeight / 2 - 20; // Adjust for symbol
-    
+    const nameFontSize = 40;
+    const nameLineHeight = 50;
+    const nameStartY = symbolY + symbolFontSize + 10; // Below symbol
 
-    // Symbol below name (closer to name)
-    const symbolY = nameStartY + nameLines.length * lineHeight + 15;
-    
-    console.log('[OG IMAGE] generateWithSharp: Text positions:', { nameStartY, symbolY, nameLines, coinName, symbol });
-    
+    console.log('[OG IMAGE] generateWithSharp: Text positions:', { symbolY, nameStartY, nameLines, coinName, symbol });
 
     let nameTextSVG = '';
     nameLines.forEach((line, index) => {
-      const yPos = nameStartY + index * lineHeight;
+      const yPos = nameStartY + index * nameLineHeight;
       nameTextSVG += `<tspan x="60" y="${yPos}" dominant-baseline="middle">${escapeXml(line)}</tspan>`;
     });
     
-    // Build SVG with inline styles to avoid parsing issues (smaller fonts like original)
+    // Build SVG with inline styles - matching original pump.fun style
+    // Symbol is large white, name is smaller white
     const svgContent = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-<text x="60" y="${nameStartY}" font-family="Arial, sans-serif" font-size="64" font-weight="700" fill="white">
+<text x="60" y="${symbolY}" font-family="Arial, sans-serif" font-size="${symbolFontSize}" font-weight="700" fill="white" dominant-baseline="middle">${escapeXml(symbol || '')}</text>
+<text x="60" y="${nameStartY}" font-family="Arial, sans-serif" font-size="${nameFontSize}" font-weight="600" fill="white">
 ${nameTextSVG}
 </text>
-<text x="60" y="${symbolY}" font-family="Arial, sans-serif" font-size="40" font-weight="600" fill="#86EFAC" dominant-baseline="middle">${escapeXml(symbol || '')}</text>
 </svg>`;
     
     const textSVG = Buffer.from(svgContent);

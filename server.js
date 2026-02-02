@@ -151,7 +151,7 @@ async function generateHTML(tokenId, host, pathname, req) {
 }
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url, `http:
+  const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = url.pathname;
   const userAgent = req.headers['user-agent'] || '';
   
@@ -259,9 +259,9 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname.startsWith('/api/og-image')) {
-    const urlParams = new URL(req.url, `http:
+    const urlParams = new URL(req.url, `http://${req.headers.host}`);
     const tokenId = urlParams.get('tokenId');
-    const coinImage = urlParams.get('coinImage') || `https:
+    const coinImage = urlParams.get('coinImage') || `https://images.pump.fun/coin-image/defaultpump?variant=86x86`;
     const coinName = urlParams.get('name') || '';
     const symbol = urlParams.get('symbol') || '';
     
@@ -353,7 +353,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Server running on http:
+  console.log(`Server running on http://${HOST}:${PORT}`);
   console.log('Bot detection enabled - meta tags will be generated for social media bots');
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

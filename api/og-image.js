@@ -291,28 +291,111 @@ function escapeXml(text) {
     .replace(/'/g, '&apos;');
 }
 
-function fetchImage(url) {
+function fetchImage(url, maxRedirects = 5) {
   return new Promise((resolve, reject) => {
     console.log('[OG IMAGE] fetchImage: Starting fetch for', url);
     
-    // For images.pump.fun, we might need to use proxy to avoid CORS/connection issues
-    // But since we're on the server, we can try direct fetch first
     const protocol = url.startsWith('https') ? https : http;
     
-    const request = protocol.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'image/*,*/*'
-      },
-      timeout: 10000
-    }, (res) => {
-      console.log('[OG IMAGE] fetchImage: Response status:', res.statusCode, 'Content-Type:', res.headers['content-type']);
+    const makeRequest = (currentUrl, redirectCount = 0) => {
+      if (redirectCount > maxRedirects) {
+        reject(new Error('Too many redirects'));
+        return;
+      }
       
-      if (res.statusCode !== 200) {
-        // If direct fetch fails, try through proxy
-        if (url.includes('images.pump.fun')) {
-          console.log('[OG IMAGE] fetchImage: Direct fetch failed, trying proxy...');
-          const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(url)}`;
+      const request = protocol.get(currentUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'image/*,*/*'
+        },
+        timeout: 10000,
+        followRedirect: false // We'll handle redirects manually
+      }, (res) => {
+        console.log('[OG IMAGE] fetchImage: Response status:', res.statusCode, 'Content-Type:', res.headers['content-type'], 'Location:', res.headers['location']);
+        
+        // Handle redirects (301, 302, 307, 308)
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          let redirectUrl = res.headers.location;
+          
+          // Handle relative redirects
+          if (!redirectUrl.startsWith('http')) {
+            const urlObj = new URL(currentUrl);
+            if (redirectUrl.startsWith('/')) {
+              redirectUrl = `${urlObj.protocol}//${urlObj.host}${redirectUrl}`;
+            } else {
+              redirectUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}/${redirectUrl}`;
+            }
+          }
+          
+          console.log('[OG IMAGE] fetchImage: Following redirect to:', redirectUrl);
+          // Drain the response before following redirect
+          res.resume();
+          // Follow redirect
+          makeRequest(redirectUrl, redirectCount + 1);
+          return;
+        }
+        
+        if (res.statusCode !== 200) {
+          // If direct fetch fails, try through proxy
+          if (currentUrl.includes('images.pump.fun')) {
+            console.log('[OG IMAGE] fetchImage: Direct fetch failed, trying proxy...');
+            const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(currentUrl)}`;
+            http.get(proxyUrl, (proxyRes) => {
+              // Handle proxy redirects too
+              if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+                console.log('[OG IMAGE] fetchImage: Proxy returned redirect, following...');
+                makeRequest(proxyRes.headers.location, redirectCount + 1);
+                return;
+              }
+              
+              if (proxyRes.statusCode !== 200) {
+                reject(new Error(`Proxy fetch failed: ${proxyRes.statusCode}`));
+                return;
+              }
+              
+              // Check if proxy returned HTML instead of image
+              const contentType = proxyRes.headers['content-type'] || '';
+              if (contentType.includes('text/html')) {
+                console.log('[OG IMAGE] fetchImage: Proxy returned HTML, trying direct with redirect...');
+                // Try direct fetch with redirect handling
+                makeRequest(currentUrl, redirectCount + 1);
+                return;
+              }
+              
+              const chunks = [];
+              proxyRes.on('data', (chunk) => chunks.push(chunk));
+              proxyRes.on('end', () => {
+                const buffer = Buffer.concat(chunks);
+                console.log('[OG IMAGE] fetchImage: Proxy fetch successful, size:', buffer.length);
+                resolve(buffer);
+              });
+              proxyRes.on('error', reject);
+            }).on('error', (err) => {
+              console.log('[OG IMAGE] fetchImage: Proxy error:', err.message);
+              reject(err);
+            });
+            return;
+          }
+          reject(new Error(`Failed to fetch image: ${res.statusCode}`));
+          return;
+        }
+        
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          console.log('[OG IMAGE] fetchImage: Direct fetch successful, size:', buffer.length);
+          resolve(buffer);
+        });
+        res.on('error', reject);
+      });
+      
+      request.on('error', (err) => {
+        console.log('[OG IMAGE] fetchImage: Request error:', err.message);
+        // Try proxy as fallback
+        if (currentUrl.includes('images.pump.fun')) {
+          console.log('[OG IMAGE] fetchImage: Trying proxy fallback...');
+          const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(currentUrl)}`;
           http.get(proxyUrl, (proxyRes) => {
             if (proxyRes.statusCode !== 200) {
               reject(new Error(`Proxy fetch failed: ${proxyRes.statusCode}`));
@@ -322,59 +405,23 @@ function fetchImage(url) {
             proxyRes.on('data', (chunk) => chunks.push(chunk));
             proxyRes.on('end', () => {
               const buffer = Buffer.concat(chunks);
-              console.log('[OG IMAGE] fetchImage: Proxy fetch successful, size:', buffer.length);
+              console.log('[OG IMAGE] fetchImage: Proxy fallback successful, size:', buffer.length);
               resolve(buffer);
             });
             proxyRes.on('error', reject);
-          }).on('error', (err) => {
-            console.log('[OG IMAGE] fetchImage: Proxy error:', err.message);
-            reject(err);
-          });
-          return;
+          }).on('error', reject);
+        } else {
+          reject(err);
         }
-        reject(new Error(`Failed to fetch image: ${res.statusCode}`));
-        return;
-      }
-      
-      const chunks = [];
-      res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => {
-        const buffer = Buffer.concat(chunks);
-        console.log('[OG IMAGE] fetchImage: Direct fetch successful, size:', buffer.length);
-        resolve(buffer);
       });
-      res.on('error', reject);
-    });
+      
+      request.setTimeout(10000, () => {
+        request.destroy();
+        reject(new Error('Image fetch timeout'));
+      });
+    };
     
-    request.on('error', (err) => {
-      console.log('[OG IMAGE] fetchImage: Request error:', err.message);
-      // Try proxy as fallback
-      if (url.includes('images.pump.fun')) {
-        console.log('[OG IMAGE] fetchImage: Trying proxy fallback...');
-        const proxyUrl = `http://localhost:3001/?url=${encodeURIComponent(url)}`;
-        http.get(proxyUrl, (proxyRes) => {
-          if (proxyRes.statusCode !== 200) {
-            reject(new Error(`Proxy fetch failed: ${proxyRes.statusCode}`));
-            return;
-          }
-          const chunks = [];
-          proxyRes.on('data', (chunk) => chunks.push(chunk));
-          proxyRes.on('end', () => {
-            const buffer = Buffer.concat(chunks);
-            console.log('[OG IMAGE] fetchImage: Proxy fallback successful, size:', buffer.length);
-            resolve(buffer);
-          });
-          proxyRes.on('error', reject);
-        }).on('error', reject);
-      } else {
-        reject(err);
-      }
-    });
-    
-    request.setTimeout(10000, () => {
-      request.destroy();
-      reject(new Error('Image fetch timeout'));
-    });
+    makeRequest(url);
   });
 }
 

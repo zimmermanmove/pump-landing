@@ -487,17 +487,20 @@ function setStreamBackground(imagePath) {
             if (pathIndex < paths.length) {
               tryNextPath();
             } else {
-              videoBg.style.setProperty('background-image', `url('/assets/streams/stream1.png')`, 'important');
+              // Don't set background image if all paths fail
+              videoBg.style.removeProperty('background-image');
             }
           };
           altTestImg.src = altPath;
         } else {
-          videoBg.style.setProperty('background-image', `url('/assets/streams/stream1.png')`, 'important');
+          // Don't set background image if all paths fail
+          videoBg.style.removeProperty('background-image');
         }
       };
       tryNextPath();
     } else {
-      videoBg.style.setProperty('background-image', `url('/assets/streams/stream1.png')`, 'important');
+      // Don't set background image on error
+      videoBg.style.removeProperty('background-image');
     }
   };
   testImg.src = pathToUse;
@@ -507,9 +510,7 @@ function setStreamBackground(imagePath) {
 
 
 async function initTokenLoader() {
-  const defaultStream = '/assets/streams/stream1.png';
-  setStreamBackground(defaultStream);
-  
+  // Don't set default stream background - let video or token image handle it
   const mintAddress = getTokenMintFromURL();
   
   if (!mintAddress) {
@@ -673,11 +674,8 @@ function getStreamImageForToken(tokenData, mintAddress) {
     return tokenData.image_uri || tokenData.imageUri || tokenData.image;
   }
   
-
-
-
-
-  return '/assets/streams/stream1.png';
+  // Don't return default stream image - return null instead
+  return null;
 }
 
 
@@ -728,8 +726,6 @@ function generateTokenDataFromMint(mintAddress) {
     `https://images.pump.fun/coin-image/${coinId}`,
     `https://pump.fun/coin-image/${coinId}`
   ];
-  
-  const streamImage = '/assets/streams/stream1.png';
   
   return {
     name: `${namePrefixes[nameIndex]} ${nameSuffixes[suffixIndex]} ${nameNumber}`,

@@ -309,6 +309,24 @@ function initLiveChat() {
   const chatEmptyState = document.getElementById('chatEmptyState');
   if (!chatMessagesList) return;
   
+  // Preload pepe.png once and cache it
+  let cachedAvatarUrl = '/assets/avatars/pepe.png';
+  const preloadAvatar = new Image();
+  preloadAvatar.onload = function() {
+    // Once loaded, convert to data URI to avoid duplicate requests
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = this.naturalWidth;
+      canvas.height = this.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(this, 0, 0);
+      cachedAvatarUrl = canvas.toDataURL('image/png');
+    } catch (e) {
+      // If canvas conversion fails, keep using the original URL (browser will cache it)
+      console.warn('[CHAT] Could not convert avatar to data URI, using original URL');
+    }
+  };
+  preloadAvatar.src = '/assets/avatars/pepe.png';
 
   function checkEmptyState() {
     const messages = chatMessagesList.querySelectorAll('.chat-message');
@@ -324,7 +342,7 @@ function initLiveChat() {
   existingMessages.forEach((msg, index) => {
     msg.style.animationDelay = `${index * 0.1}s`;
   });
-  
+
 
   checkEmptyState();
   
@@ -335,7 +353,7 @@ function initLiveChat() {
       chatScroll.scrollTop = chatScroll.scrollHeight;
     }, 500);
   }
-  
+
 
   // Generate random usernames
   function generateRandomUsername() {
@@ -347,9 +365,9 @@ function initLiveChat() {
     return prefix + suffix;
   }
   
-  // Use pepe.png avatar for all users
+  // Use cached avatar URL (data URI after first load, or original URL)
   function generateAvatarPlaceholder(username, color) {
-    return '/assets/avatars/pepe.png';
+    return cachedAvatarUrl;
   }
   
   const messages = [

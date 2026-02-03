@@ -298,11 +298,7 @@ const server = http.createServer((req, res) => {
     
     // Use php with -r to set $_GET parameters directly
     // This is more reliable than php-cgi for our use case
-    const queryParams = new URLSearchParams(queryString);
-    let phpCode = '';
-    
-    // Build PHP code to set $_GET parameters
-    // Use parse_str to properly parse query string (more reliable)
+    // Build PHP code to set $_GET parameters using parse_str
     let phpCode = '';
     
     if (queryStringClean) {

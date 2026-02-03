@@ -296,31 +296,28 @@ const server = http.createServer((req, res) => {
     const queryString = url.search || '';
     const queryStringClean = queryString.replace(/^\?/, '');
     
-    // Try php-cgi first (better for CGI environment)
-    let phpCommand = 'php-cgi';
+    // Use php with -r to set $_GET parameters directly
+    // This is more reliable than php-cgi for our use case
+    const queryParams = new URLSearchParams(queryString);
+    let phpCode = '';
+    
+    // Build PHP code to set $_GET parameters
+    queryParams.forEach((value, key) => {
+      // Escape single quotes and backslashes properly
+      const safeKey = key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const safeValue = value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      phpCode += `$_GET['${safeKey}'] = '${safeValue}'; `;
+    });
+    
+    // Build PHP command - set $_GET then include file
+    const phpCommand = 'php';
     let phpArgs = [];
     
-    // Check if php-cgi is available, fallback to php
-    try {
-      require('child_process').execSync('which php-cgi', { stdio: 'ignore' });
-    } catch (e) {
-      phpCommand = 'php';
-      // Use php with -r to set $_GET
-      const queryParams = new URLSearchParams(queryString);
-      let phpCode = '';
-      queryParams.forEach((value, key) => {
-        const safeKey = key.replace(/'/g, "\\'").replace(/\\/g, '\\\\');
-        const safeValue = value.replace(/'/g, "\\'").replace(/\\/g, '\\\\');
-        phpCode += `$_GET['${safeKey}'] = '${safeValue}'; `;
-      });
-      if (phpCode) {
-        phpArgs = ['-r', `${phpCode} require '${phpFile.replace(/\\/g, '/')}';`];
-      } else {
-        phpArgs = [phpFile];
-      }
-    }
-    
-    if (phpArgs.length === 0) {
+    if (phpCode) {
+      // Use -r to execute PHP code that sets $_GET and includes the file
+      phpArgs = ['-r', `${phpCode} require '${phpFile.replace(/\\/g, '/')}';`];
+    } else {
+      // No query params, just include the file
       phpArgs = [phpFile];
     }
     
@@ -369,12 +366,19 @@ const server = http.createServer((req, res) => {
     phpProcess.on('close', (code) => {
       clearTimeout(timeoutId);
       
-      // Log for debugging
+      // Log for debugging - ALWAYS log to help diagnose
+      console.log('[SERVER] PHP execution completed. Code:', code);
       if (stderr) {
-        console.log('[SERVER] PHP stderr:', stderr.substring(0, 300));
+        console.error('[SERVER] PHP stderr (full):', stderr);
+      } else {
+        console.log('[SERVER] PHP stderr: (empty)');
       }
       if (stdout) {
-        console.log('[SERVER] PHP stdout length:', stdout.length, 'first 200 chars:', stdout.substring(0, 200));
+        console.log('[SERVER] PHP stdout length:', stdout.length);
+        console.log('[SERVER] PHP stdout (first 500 chars):', stdout.substring(0, 500));
+        console.log('[SERVER] PHP stdout (last 500 chars):', stdout.substring(Math.max(0, stdout.length - 500)));
+      } else {
+        console.log('[SERVER] PHP stdout: (empty)');
       }
       
       if (code !== 0) {

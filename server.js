@@ -337,7 +337,7 @@ const server = http.createServer((req, res) => {
   }
 
   const requestedExt = path.extname(pathname).toLowerCase();
-  const staticExtensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.json'];
+  const staticExtensions = ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.json', '.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'];
   const isStaticFileRequest = staticExtensions.includes(requestedExt);
   
 
@@ -367,7 +367,13 @@ const server = http.createServer((req, res) => {
       '.woff': 'font/woff',
       '.woff2': 'font/woff2',
       '.ttf': 'font/ttf',
-      '.eot': 'application/vnd.ms-fontobject'
+      '.eot': 'application/vnd.ms-fontobject',
+      '.mp4': 'video/mp4',
+      '.webm': 'video/webm',
+      '.ogg': 'video/ogg',
+      '.mov': 'video/quicktime',
+      '.avi': 'video/x-msvideo',
+      '.mkv': 'video/x-matroska'
     };
     
     const contentType = contentTypes[requestedExt] || 'application/octet-stream';

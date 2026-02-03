@@ -579,49 +579,14 @@ function initStreamVideo() {
   }, { once: true });
   
   // Handle loading errors - fallback to background image
-  video.addEventListener('error', (e) => {
-    console.error('[VIDEO] Video failed to load:', e);
-    console.error('[VIDEO] Video error code:', video.error ? video.error.code : 'unknown');
-    console.error('[VIDEO] Video error message:', video.error ? video.error.message : 'unknown');
-    console.error('[VIDEO] Video source was:', videoSrc);
-    console.error('[VIDEO] Trying alternative paths...');
-    
-    // Try alternative paths
-    const alternativePaths = [
-      '/assets/streams/stream1.mp4',
-      '/assets/streams/video.mp4',
-      '/videos/stream-video.mp4',
-      '/stream-video.mp4'
-    ];
-    
-    let currentPathIndex = 0;
-    const tryNextPath = () => {
-      if (currentPathIndex < alternativePaths.length) {
-        const altPath = alternativePaths[currentPathIndex];
-        console.log('[VIDEO] Trying alternative path:', altPath);
-        if (source) {
-          source.src = altPath;
-          video.src = altPath;
-        } else {
-          video.src = altPath;
-        }
-        video.load();
-        currentPathIndex++;
-      } else {
-        // All paths failed, hide video and show background
-        console.warn('[VIDEO] All video paths failed, using background image');
-        video.style.display = 'none';
-        video.classList.remove('loading');
-        const videoBg = document.querySelector('.video-bg');
-        if (videoBg) {
-          videoBg.style.opacity = '1';
-        }
-      }
-    };
-    
-    // Try next path on error
-    video.addEventListener('error', tryNextPath, { once: true });
-    tryNextPath();
+  video.addEventListener('error', () => {
+    // Video file not found, hide video and show background image
+    video.style.display = 'none';
+    video.classList.remove('loading');
+    const videoBg = document.querySelector('.video-bg');
+    if (videoBg) {
+      videoBg.style.opacity = '1';
+    }
   }, { once: true });
   
   

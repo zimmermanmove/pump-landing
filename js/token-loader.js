@@ -1006,12 +1006,40 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     }
     
     // Load all URLs in parallel for faster loading
+    // Try direct loading first to avoid 403 errors from proxy
     const loadPromises = urls.map(async (url) => {
       try {
+        // Try direct loading first for images.pump.fun to avoid 403 errors
         if (url.includes('images.pump.fun')) {
-          return await loadViaProxy(url);
+          // First try direct loading (faster, no proxy 403 errors)
+          try {
+            const directLoad = await new Promise((resolve, reject) => {
+              const testImg = new Image();
+              testImg.crossOrigin = 'anonymous';
+              const timeout = setTimeout(() => reject(new Error('Timeout')), 2000);
+              testImg.onload = () => {
+                clearTimeout(timeout);
+                resolve(url);
+              };
+              testImg.onerror = () => {
+                clearTimeout(timeout);
+                reject(new Error('Failed to load'));
+              };
+              testImg.src = url;
+            });
+            return directLoad;
+          } catch (directErr) {
+            // If direct loading fails, try proxy as fallback (but don't log 403 errors)
+            try {
+              const proxyResult = await loadViaProxy(url);
+              return proxyResult;
+            } catch (proxyErr) {
+              // Silently fail - don't log proxy errors
+              return null;
+            }
+          }
         } else {
-          // Test direct URL loading
+          // Test direct URL loading for other URLs
           return new Promise((resolve, reject) => {
             const testImg = new Image();
             testImg.crossOrigin = 'anonymous';

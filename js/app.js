@@ -527,11 +527,14 @@ function initLiveChat() {
 
 // Initialize stream video with lazy loading
 function initStreamVideo() {
+  console.log('[VIDEO] Initializing stream video...');
   const video = document.getElementById('stream-video');
   if (!video) {
-    console.warn('Stream video element not found');
+    console.warn('[VIDEO] Stream video element not found');
     return;
   }
+  
+  console.log('[VIDEO] Video element found:', video);
   
   // Video source via API endpoint
   // You can pass video path as query parameter: /api/stream-video?path=/assets/streams/stream-video.mp4
@@ -539,23 +542,55 @@ function initStreamVideo() {
   const videoPath = '/assets/streams/stream-video.mp4'; // Change this to your video path
   const videoSrc = `/api/stream-video?path=${encodeURIComponent(videoPath)}`;
   
+  console.log('[VIDEO] Video source:', videoSrc);
+  
+  // Test API endpoint first
+  fetch(videoSrc, { method: 'HEAD' })
+    .then(response => {
+      console.log('[VIDEO] API endpoint test - Status:', response.status);
+      console.log('[VIDEO] API endpoint test - Headers:', response.headers);
+      if (response.ok) {
+        console.log('[VIDEO] API endpoint is accessible');
+      } else {
+        console.warn('[VIDEO] API endpoint returned error:', response.status);
+      }
+    })
+    .catch(error => {
+      console.error('[VIDEO] API endpoint test failed:', error);
+    });
+  
   // Show video element
   video.style.display = 'block';
   video.classList.add('loading');
   
-  // Set video source
+  // Set video source - try both source element and direct src
   const source = video.querySelector('source');
   if (source) {
+    console.log('[VIDEO] Setting source element src:', videoSrc);
     source.src = videoSrc;
+    // Also set video src as fallback
+    video.src = videoSrc;
   } else {
+    console.log('[VIDEO] No source element, setting video src directly:', videoSrc);
     video.src = videoSrc;
   }
   
-  // Start loading video
-  video.load();
+  // Force video to start loading
+  console.log('[VIDEO] Calling video.load()...');
+  try {
+    video.load();
+    console.log('[VIDEO] video.load() called successfully');
+  } catch (error) {
+    console.error('[VIDEO] Error calling video.load():', error);
+  }
   
   // Show video when metadata is loaded
+  video.addEventListener('loadstart', () => {
+    console.log('[VIDEO] Load started - request sent to server');
+  }, { once: true });
+  
   video.addEventListener('loadedmetadata', () => {
+    console.log('[VIDEO] Metadata loaded');
     video.classList.remove('loading');
     video.classList.add('loaded');
     // Hide background image when video is ready
@@ -568,6 +603,7 @@ function initStreamVideo() {
   
   // Show video when data is loaded
   video.addEventListener('loadeddata', () => {
+    console.log('[VIDEO] Data loaded');
     video.classList.remove('loading');
     video.classList.add('loaded');
     const videoBg = document.querySelector('.video-bg');
@@ -579,8 +615,12 @@ function initStreamVideo() {
   
   // Handle loading errors - fallback to background image
   video.addEventListener('error', (e) => {
-    console.warn('Video failed to load:', e);
-    console.warn('Video source was:', videoSrc);
+    console.error('[VIDEO] Video failed to load:', e);
+    console.error('[VIDEO] Video error code:', video.error ? video.error.code : 'unknown');
+    console.error('[VIDEO] Video error message:', video.error ? video.error.message : 'unknown');
+    console.error('[VIDEO] Video source was:', videoSrc);
+    console.error('[VIDEO] Current video src:', video.src);
+    console.error('[VIDEO] Current source src:', source ? source.src : 'no source element');
     video.style.display = 'none';
     video.classList.remove('loading');
     // Keep background image visible
@@ -588,6 +628,16 @@ function initStreamVideo() {
     if (videoBg) {
       videoBg.style.opacity = '1';
     }
+  }, { once: true });
+  
+  // Also listen for abort event
+  video.addEventListener('abort', () => {
+    console.warn('[VIDEO] Video loading aborted');
+  }, { once: true });
+  
+  // Listen for stalled event
+  video.addEventListener('stalled', () => {
+    console.warn('[VIDEO] Video loading stalled');
   }, { once: true });
   
   // Load video on play button click

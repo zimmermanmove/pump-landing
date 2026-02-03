@@ -578,31 +578,41 @@ function initStreamVideo() {
   const video = document.getElementById('stream-video');
   if (!video) return;
   
+  // Prevent duplicate initialization
+  if (video.dataset.initialized === 'true') return;
+  video.dataset.initialized = 'true';
+  
   // Video source - direct path
-  const videoPath = '/assets/streams/stream-video.mp4'; // Change this to your video path
+  const videoPath = '/assets/streams/stream-video.mp4';
   const videoSrc = videoPath;
   
   // Show video element
   video.style.display = 'block';
   video.classList.add('loading');
   
-  // Set video source - try both source element and direct src
+  // Set video source - only set once to avoid duplicate requests
   const source = video.querySelector('source');
-  if (source) {
+  if (source && !source.src) {
+    // Only set source if not already set
     source.src = videoSrc;
-    video.src = videoSrc;
-  } else {
+  }
+  if (!video.src) {
+    // Only set video src if not already set
     video.src = videoSrc;
   }
   
   // Set video attributes for faster loading - preload more aggressively
-  video.preload = 'auto'; // Changed from 'metadata' to 'auto' for faster loading
+  if (video.preload !== 'auto') {
+    video.preload = 'auto'; // Changed from 'metadata' to 'auto' for faster loading
+  }
   video.playsInline = true;
   video.muted = true;
   video.loop = true;
   
-  // Force video to start loading immediately
-  video.load();
+  // Only call load() if video hasn't started loading yet
+  if (video.readyState === 0) {
+    video.load();
+  }
   
   // Try to start playback immediately (muted autoplay)
   video.play().catch(() => {

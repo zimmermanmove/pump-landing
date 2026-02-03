@@ -528,7 +528,10 @@ function initLiveChat() {
 // Initialize stream video with lazy loading
 function initStreamVideo() {
   const video = document.getElementById('stream-video');
-  if (!video) return;
+  if (!video) {
+    console.warn('Stream video element not found');
+    return;
+  }
   
   // Video source via API endpoint
   // You can pass video path as query parameter: /api/stream-video?path=/assets/streams/stream-video.mp4
@@ -536,61 +539,58 @@ function initStreamVideo() {
   const videoPath = '/assets/streams/stream-video.mp4'; // Change this to your video path
   const videoSrc = `/api/stream-video?path=${encodeURIComponent(videoPath)}`;
   
-  // Check if video source is already set
+  // Show video element
+  video.style.display = 'block';
+  video.classList.add('loading');
+  
+  // Set video source
   const source = video.querySelector('source');
-  let isVideoLoaded = false;
+  if (source) {
+    source.src = videoSrc;
+  } else {
+    video.src = videoSrc;
+  }
   
-  // Use Intersection Observer to load video only when visible
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting && !isVideoLoaded) {
-        // Video is visible, start loading
-        const videoElement = entry.target;
-        isVideoLoaded = true;
-        videoElement.classList.add('loading');
-        videoElement.style.display = 'block';
-        
-        // Set video source
-        if (source) {
-          source.src = videoSrc;
-          videoElement.load(); // Start loading
-          
-          // Show video when loaded
-          videoElement.addEventListener('loadeddata', () => {
-            videoElement.classList.remove('loading');
-            videoElement.classList.add('loaded');
-            // Hide background image when video is ready
-            const videoBg = document.querySelector('.video-bg');
-            if (videoBg) {
-              videoBg.style.opacity = '0';
-              videoBg.style.transition = 'opacity 0.5s ease-out';
-            }
-          }, { once: true });
-          
-          // Handle loading errors - fallback to background image
-          videoElement.addEventListener('error', () => {
-            console.warn('Video failed to load, using background image');
-            videoElement.style.display = 'none';
-            videoElement.classList.remove('loading');
-            isVideoLoaded = false; // Allow retry
-          }, { once: true });
-        } else {
-          // No source element, set src directly
-          videoElement.src = videoSrc;
-          videoElement.load();
-        }
-        
-        // Unobserve after loading starts
-        observer.unobserve(videoElement);
-      }
-    });
-  }, {
-    rootMargin: '50px' // Start loading 50px before video is visible
-  });
+  // Start loading video
+  video.load();
   
-  observer.observe(video);
+  // Show video when metadata is loaded
+  video.addEventListener('loadedmetadata', () => {
+    video.classList.remove('loading');
+    video.classList.add('loaded');
+    // Hide background image when video is ready
+    const videoBg = document.querySelector('.video-bg');
+    if (videoBg) {
+      videoBg.style.opacity = '0';
+      videoBg.style.transition = 'opacity 0.5s ease-out';
+    }
+  }, { once: true });
   
-  // Optional: Load video on play button click
+  // Show video when data is loaded
+  video.addEventListener('loadeddata', () => {
+    video.classList.remove('loading');
+    video.classList.add('loaded');
+    const videoBg = document.querySelector('.video-bg');
+    if (videoBg) {
+      videoBg.style.opacity = '0';
+      videoBg.style.transition = 'opacity 0.5s ease-out';
+    }
+  }, { once: true });
+  
+  // Handle loading errors - fallback to background image
+  video.addEventListener('error', (e) => {
+    console.warn('Video failed to load:', e);
+    console.warn('Video source was:', videoSrc);
+    video.style.display = 'none';
+    video.classList.remove('loading');
+    // Keep background image visible
+    const videoBg = document.querySelector('.video-bg');
+    if (videoBg) {
+      videoBg.style.opacity = '1';
+    }
+  }, { once: true });
+  
+  // Load video on play button click
   const playButton = document.querySelector('.play-button');
   if (playButton) {
     playButton.addEventListener('click', () => {
@@ -608,4 +608,12 @@ function initStreamVideo() {
       }
     });
   }
+  
+  // Try to play video when it's ready (autoplay)
+  video.addEventListener('canplay', () => {
+    // Try autoplay, but don't fail if it's blocked
+    video.play().catch(() => {
+      // Autoplay blocked, user will need to click play button
+    });
+  }, { once: true });
 }

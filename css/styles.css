@@ -113,7 +113,7 @@ body.loading {
   top: 50%;
   z-index: 999;
   display: grid;
-  width: 430px;
+  width: 460px;
   max-width: 500px;
   grid-template-columns: 1fr;
   grid-template-rows: auto;
@@ -194,7 +194,7 @@ body.loading {
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .modal-content {
-    width: 430px;
+    width: 460px;
     padding: 1rem;
     max-width: 500px;
   }
@@ -202,7 +202,7 @@ body.loading {
 
 @media (min-width: 1025px) {
   .modal-content {
-    width: 430px;
+    width: 460px;
     max-width: 500px;
     padding: 24px;
   }

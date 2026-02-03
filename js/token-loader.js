@@ -67,7 +67,7 @@ async function fetchTokenDataFromHTML(coinId) {
       if (!controller.signal.aborted) {
         controller.abort();
       }
-    }, 1500); // Fast timeout 1.5 seconds for quick retries
+    }, 800); // Faster timeout 0.8 seconds for quick retries
     
     const response = await fetch(proxyUrl, {
       method: 'GET',
@@ -561,8 +561,8 @@ async function initTokenLoader() {
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   
-  // Fast retry function
-  async function tryFetchWithRetries(maxRetries = 5, delay = 500) {
+  // Fast retry function - reduced delays for faster loading
+  async function tryFetchWithRetries(maxRetries = 3, delay = 200) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const htmlData = await fetchTokenDataFromHTML(fullCoinId);

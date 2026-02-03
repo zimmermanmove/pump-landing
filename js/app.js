@@ -316,7 +316,12 @@ function initApp() {
   
 
   initLiveChat();
-  initStreamVideo();
+  
+  // Initialize video only once - check if already initialized
+  if (!window._videoInitialized) {
+    window._videoInitialized = true;
+    initStreamVideo();
+  }
   
   // Immediately check if we can hide overlay (in case token already loaded)
   if (window.checkAllResourcesLoaded) {
@@ -573,48 +578,46 @@ function initLiveChat() {
   window.chatMessageInterval = messageInterval;
 }
 
-// Initialize stream video with lazy loading
+// Initialize stream video with lazy loading - SINGLE INITIALIZATION ONLY
 function initStreamVideo() {
   const video = document.getElementById('stream-video');
   if (!video) return;
   
-  // Prevent duplicate initialization
-  if (video.dataset.initialized === 'true') return;
-  video.dataset.initialized = 'true';
+  // STRICT duplicate prevention - check multiple flags
+  if (video.dataset.initialized === 'true' || window._videoSrcSet) {
+    return; // Already initialized, exit immediately
+  }
   
-  // Show video element first
+  // Mark as initialized IMMEDIATELY to prevent race conditions
+  video.dataset.initialized = 'true';
+  window._videoSrcSet = true;
+  
+  // Check if video already has src set
+  const currentSrc = video.src || '';
+  const videoPath = '/assets/streams/stream-video.mp4';
+  
+  // If src is already set correctly, don't do anything
+  if (currentSrc && currentSrc.includes('stream-video.mp4')) {
+    return;
+  }
+  
+  // Show video element
   video.style.display = 'block';
   video.classList.add('loading');
   
-  // Set video attributes BEFORE setting src to avoid duplicate loading
+  // Set video attributes BEFORE setting src
   video.playsInline = true;
   video.muted = true;
   video.loop = true;
   
-  // Video source - direct path
-  const videoPath = '/assets/streams/stream-video.mp4';
+  // DON'T change preload - keep HTML preload="none" to prevent auto-loading
+  // Only set src - this will trigger loading
+  video.src = videoPath;
   
-  // Check if src is already set to avoid duplicate requests
-  const currentSrc = video.src || '';
-  const videoPathFull = new URL(videoPath, window.location.origin).href;
+  // Don't call load() - let browser handle it naturally with preload="none"
+  // This prevents duplicate requests
   
-  // Only set src if it's not already set to the correct path
-  if (!currentSrc || currentSrc === '' || currentSrc === window.location.href || !currentSrc.includes('stream-video.mp4')) {
-    // Set preload BEFORE setting src to prevent duplicate loading
-    video.preload = 'auto';
-    video.src = videoPath;
-    
-    // Only call load() ONCE if video hasn't started loading yet
-    if (video.readyState === 0 && !video.dataset.loading) {
-      video.dataset.loading = 'true';
-      video.load();
-    }
-  } else if (currentSrc && currentSrc.includes('stream-video.mp4')) {
-    // Video src already set correctly, don't do anything - prevent duplicate
-    return;
-  }
-  
-  // Try to start playback immediately (muted autoplay)
+  // Try to start playback (muted autoplay)
   video.play().catch(() => {
     // Autoplay blocked, will play on user interaction
   });

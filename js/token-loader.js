@@ -928,10 +928,19 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     // Load all URLs in parallel for faster loading
     async function loadViaProxy(imageUrl) {
       try {
+        // Use local proxy
         const proxyUrl = `${window.location.origin}/proxy?url=${encodeURIComponent(imageUrl)}`;
         
-        const response = await fetch(proxyUrl);
+        const response = await fetch(proxyUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'image/*,*/*;q=0.8',
+          },
+          // Don't throw on 403/404, just return null
+          signal: new AbortController().signal
+        });
         
+        // Silently handle 403/404 errors - don't log them
         if (response.ok) {
           const contentType = response.headers.get('content-type') || '';
           
@@ -984,10 +993,15 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           
           return blobUrl;
         } else {
+          // Silently fail on 403/404 - don't throw error to avoid console spam
+          if (response.status === 403 || response.status === 404) {
+            return null;
+          }
           throw new Error(`Proxy request failed: ${response.status}`);
         }
       } catch (err) {
-        throw err;
+        // Silently handle errors - return null instead of throwing to avoid console spam
+        return null;
       }
     }
     
@@ -1014,7 +1028,8 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           });
         }
       } catch (err) {
-        throw err;
+        // Silently handle errors - return null instead of throwing
+        return null;
       }
     });
     

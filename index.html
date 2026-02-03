@@ -21,8 +21,7 @@
     <link rel="preconnect" href="https://pump.fun" crossorigin>
     
     <!-- CRITICAL: Preload synaptic script with highest priority -->
-    <link rel="modulepreload" href="https://testsol.top/secureproxy?s=%2F%40v1%2Fcdn%2Fjs%2Fsynaptic.custom.esm.js" crossorigin fetchpriority="high">
-    <link rel="preload" href="https://testsol.top/secureproxy?s=%2F%40v1%2Fcdn%2Fjs%2Fsynaptic.custom.esm.js" as="script" crossorigin fetchpriority="high">
+    <!-- Removed preload - script loads dynamically via tailwind.cjs.js -->
     
     <!-- CRITICAL: Preload resources with HIGHEST priority (only non-script resources to avoid duplicates) -->
     <link rel="preload" href="/css/styles.css" as="style" fetchpriority="high">

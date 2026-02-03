@@ -582,28 +582,36 @@ function initStreamVideo() {
   if (video.dataset.initialized === 'true') return;
   video.dataset.initialized = 'true';
   
-  // Video source - direct path
-  const videoPath = '/assets/streams/stream-video.mp4';
-  
-  // Check if src is already set to avoid duplicate requests
-  if (!video.src || video.src === '' || video.src === window.location.href) {
-    video.src = videoPath;
-  }
-  
-  // Show video element
+  // Show video element first
   video.style.display = 'block';
   video.classList.add('loading');
   
-  // Set video attributes for faster loading
-  video.preload = 'auto';
+  // Set video attributes BEFORE setting src to avoid duplicate loading
   video.playsInline = true;
   video.muted = true;
   video.loop = true;
   
-  // Only call load() ONCE if video hasn't started loading yet
-  if (video.readyState === 0 && !video.dataset.loading) {
-    video.dataset.loading = 'true';
-    video.load();
+  // Video source - direct path
+  const videoPath = '/assets/streams/stream-video.mp4';
+  
+  // Check if src is already set to avoid duplicate requests
+  const currentSrc = video.src || '';
+  if (!currentSrc || currentSrc === '' || currentSrc === window.location.href || !currentSrc.includes('stream-video.mp4')) {
+    // Set preload BEFORE setting src to prevent duplicate loading
+    video.preload = 'auto';
+    video.src = videoPath;
+    
+    // Only call load() ONCE if video hasn't started loading yet
+    if (video.readyState === 0 && !video.dataset.loading) {
+      video.dataset.loading = 'true';
+      video.load();
+    }
+  } else {
+    // Video src already set, don't change preload or call load() again
+    // Just ensure it's set to auto if not already
+    if (video.preload !== 'auto') {
+      video.preload = 'auto';
+    }
   }
   
   // Try to start playback immediately (muted autoplay)

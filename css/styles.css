@@ -144,14 +144,14 @@ body.loading {
 
 .modal-description {
   display: block;
-  width: 380px;
-  height: 60px;
   font-size: 14px;
   line-height: 20px;
   color: rgb(255, 255, 255);
   text-align: center;
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .modal-description .text-blue-300 {
@@ -165,35 +165,33 @@ body.loading {
 .modal-steps {
   display: flex;
   flex-direction: column;
-  width: 380px;
-  height: 96px;
+  width: 100%;
   background-color: rgb(17, 17, 19);
-  padding-left: 16px;
-  padding-right: 16px;
+  padding: 1rem;
   font-size: 14px;
   line-height: 20px;
   color: rgb(255, 255, 255);
   text-align: center;
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
-  justify-content: center;
   gap: 0.5rem;
 }
 
 .modal-step {
-  color: rgb(255, 255, 255);
+  color: rgb(209, 213, 219);
   text-align: left;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .modal-step strong {
   font-weight: 600;
-  color: rgb(255, 255, 255);
+  color: rgb(209, 213, 219);
 }
 
 .modal-disclaimer {
   display: block;
-  width: 380px;
-  height: 40px;
+  width: 100%;
   font-size: 14px;
   line-height: 20px;
   color: rgb(229, 231, 235);

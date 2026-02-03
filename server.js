@@ -240,7 +240,7 @@ const server = http.createServer((req, res) => {
     
     const stat = fs.statSync(filePath);
     const fileSize = stat.size;
-    const range = req.headers.range;
+    const range = req.headers.range || req.headers['range'];
     
     if (range) {
       // Parse range header
@@ -597,6 +597,87 @@ const server = http.createServer((req, res) => {
       res.writeHead(403, { 'Content-Type': 'text/plain' });
       res.end('Forbidden');
       return;
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('File not found');
+      return;
+    }
+    
+    // Handle range requests for video files (especially important for Mac/Safari)
+    const isVideoFile = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'].includes(requestedExt);
+    if (isVideoFile) {
+      const stat = fs.statSync(filePath);
+      const fileSize = stat.size;
+      const range = req.headers.range;
+      
+      if (range) {
+        // Parse range header - handle different formats (Mac Safari can send different formats)
+        let start = 0;
+        let end = fileSize - 1;
+        
+        // Handle different range formats
+        const rangeMatch = range.match(/bytes=(\d+)-(\d*)/);
+        if (rangeMatch) {
+          start = parseInt(rangeMatch[1], 10);
+          end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : fileSize - 1;
+        } else {
+          // Fallback: try original parsing
+          const parts = range.replace(/bytes=/, "").split("-");
+          start = parseInt(parts[0], 10) || 0;
+          end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        }
+        
+        // Validate range
+        if (start >= fileSize || end >= fileSize || start > end) {
+          res.writeHead(416, {
+            'Content-Range': `bytes */${fileSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Type': 'video/mp4',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end();
+          return;
+        }
+        
+        const chunksize = (end - start) + 1;
+        const file = fs.createReadStream(filePath, { start, end });
+        
+        const head = {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunksize,
+          'Content-Type': requestedExt === '.mp4' ? 'video/mp4' : 
+                         requestedExt === '.webm' ? 'video/webm' : 
+                         requestedExt === '.ogg' ? 'video/ogg' : 'video/mp4',
+          'Cache-Control': 'public, max-age=31536000',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Range',
+          'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges'
+        };
+        
+        res.writeHead(206, head);
+        file.pipe(res);
+        return;
+      } else {
+        // No range request - send full file with Accept-Ranges header
+        const head = {
+          'Content-Length': fileSize,
+          'Content-Type': requestedExt === '.mp4' ? 'video/mp4' : 
+                         requestedExt === '.webm' ? 'video/webm' : 
+                         requestedExt === '.ogg' ? 'video/ogg' : 'video/mp4',
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'public, max-age=31536000',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges'
+        };
+        
+        res.writeHead(200, head);
+        fs.createReadStream(filePath).pipe(res);
+        return;
+      }
     }
     
 

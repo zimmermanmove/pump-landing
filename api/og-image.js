@@ -197,7 +197,7 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
       const imageWidth = 420;
       const imageHeight = 409;
       const cornerRadius = 17;
-      const imageX = width - imageWidth - Math.floor(width * 0.068); // 7.2% margin from right (slightly right)
+      const imageX = width - imageWidth - Math.floor(width * 0.066); // 7.2% margin from right (slightly right)
       const imageY = Math.floor((height - imageHeight) / 2); // Centered vertically
       
       circleCoords = {

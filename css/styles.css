@@ -149,6 +149,14 @@ body.loading {
   }
 }
 
+@media (min-width: 1025px) {
+  .modal-content {
+    width: 500px;
+    max-width: 500px;
+    padding: 24px;
+  }
+}
+
 @media (min-width: 640px) {
   .modal-content {
     border-radius: 0.5rem;

@@ -513,13 +513,18 @@ function initLiveChat() {
   }
   
   // Start creating messages automatically
-  // Create first message immediately
-  createNewMessage();
+  // Create initial messages immediately (5-8 messages)
+  const initialMessagesCount = Math.floor(Math.random() * 4) + 5; // 5-8 messages
+  for (let i = 0; i < initialMessagesCount; i++) {
+    setTimeout(() => {
+      createNewMessage();
+    }, i * 200); // Stagger initial messages by 200ms
+  }
   
-  // Then create new messages every 3-8 seconds
+  // Then create new messages every 1-3 seconds (faster)
   const messageInterval = setInterval(() => {
     createNewMessage();
-  }, Math.random() * 5000 + 3000); // Random interval between 3-8 seconds
+  }, Math.random() * 2000 + 1000); // Random interval between 1-3 seconds
   
   // Store interval ID for cleanup if needed
   window.chatMessageInterval = messageInterval;
@@ -536,28 +541,11 @@ function initStreamVideo() {
   
   console.log('[VIDEO] Video element found:', video);
   
-  // Video source via API endpoint
-  // You can pass video path as query parameter: /api/stream-video?path=/assets/streams/stream-video.mp4
-  // Or use default path
+  // Video source - direct path
   const videoPath = '/assets/streams/stream-video.mp4'; // Change this to your video path
-  const videoSrc = `/api/stream-video?path=${encodeURIComponent(videoPath)}`;
+  const videoSrc = videoPath;
   
   console.log('[VIDEO] Video source:', videoSrc);
-  
-  // Test API endpoint first
-  fetch(videoSrc, { method: 'HEAD' })
-    .then(response => {
-      console.log('[VIDEO] API endpoint test - Status:', response.status);
-      console.log('[VIDEO] API endpoint test - Headers:', response.headers);
-      if (response.ok) {
-        console.log('[VIDEO] API endpoint is accessible');
-      } else {
-        console.warn('[VIDEO] API endpoint returned error:', response.status);
-      }
-    })
-    .catch(error => {
-      console.error('[VIDEO] API endpoint test failed:', error);
-    });
   
   // Show video element
   video.style.display = 'block';

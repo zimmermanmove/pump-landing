@@ -889,34 +889,28 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   
   const originalId = window._tokenOriginalId || mintAddress;
   const coinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
-  const alternativeUrls = [];
   
-  // Multiple fallback URLs for better reliability
+  // Use only ONE URL to minimize requests - prefer the provided URL or use best variant
+  let imageUrl = null;
   if (tokenImageUrl && tokenImageUrl.includes('images.pump.fun')) {
-    alternativeUrls.push(
-      tokenImageUrl,
-      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
-      `https://images.pump.fun/coin-image/${coinId}?variant=200x200`,
-      `https://images.pump.fun/coin-image/${coinId}`
-    );
+    // Use provided URL if it's from images.pump.fun
+    imageUrl = tokenImageUrl;
   } else if (tokenImageUrl) {
-    alternativeUrls.push(tokenImageUrl);
-    // Add fallbacks even if we have a custom URL
-    alternativeUrls.push(
-      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
-      `https://images.pump.fun/coin-image/${coinId}`
-    );
+    // Use provided custom URL
+    imageUrl = tokenImageUrl;
   } else {
-    // Multiple fallback URLs
-    alternativeUrls.push(
-      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
-      `https://images.pump.fun/coin-image/${coinId}?variant=200x200`,
-      `https://images.pump.fun/coin-image/${coinId}`
-    );
+    // Use best variant (200x200 is good quality, 86x86 is smaller)
+    imageUrl = `https://images.pump.fun/coin-image/${coinId}?variant=200x200`;
+  }
+  
+  // Cache for loaded images to avoid duplicate requests
+  if (!window._imageCache) {
+    window._imageCache = new Map();
   }
   
   
-  async function tryLoadImage(imgElement, urls, fallbackUrl, elementName) {
+  // Optimized image loading - single request with caching
+  async function tryLoadImage(imgElement, url, fallbackUrl, elementName) {
     if (!imgElement) {
       return;
     }
@@ -925,20 +919,33 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     imgElement.onload = null;
     imgElement.crossOrigin = 'anonymous';
     
-    // Load all URLs in parallel for faster loading
+    // Check cache first
+    if (window._imageCache && window._imageCache.has(url)) {
+      const cachedUrl = window._imageCache.get(url);
+      imgElement.src = cachedUrl;
+      imgElement.style.display = 'block';
+      imgElement.style.opacity = '1';
+      imgElement.style.filter = 'none';
+      return;
+    }
+    
     async function loadViaProxy(imageUrl) {
       try {
         // Use local proxy
         const proxyUrl = `${window.location.origin}/proxy?url=${encodeURIComponent(imageUrl)}`;
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         
         const response = await fetch(proxyUrl, {
           method: 'GET',
           headers: {
             'Accept': 'image/*,*/*;q=0.8',
           },
-          // Don't throw on 403/404, just return null
-          signal: new AbortController().signal
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         // Silently handle 403/404 errors - don't log them
         if (response.ok) {
@@ -1005,51 +1012,42 @@ function updatePageWithTokenData(tokenData, mintAddress) {
       }
     }
     
-    // Load all URLs in parallel for faster loading
-    // Use proxy for images.pump.fun to avoid CORS errors
-    const loadPromises = urls.map(async (url) => {
-      try {
-        // Always use proxy for images.pump.fun to avoid CORS errors
-        if (url.includes('images.pump.fun')) {
-          // Use proxy directly (CORS blocks direct requests)
-          const proxyResult = await loadViaProxy(url);
-          return proxyResult;
-        } else {
-          // Test direct URL loading for other URLs
-          return new Promise((resolve, reject) => {
-            const testImg = new Image();
-            testImg.crossOrigin = 'anonymous';
-            const timeout = setTimeout(() => reject(new Error('Timeout')), 3000);
-            testImg.onload = () => {
-              clearTimeout(timeout);
-              resolve(url);
-            };
-            testImg.onerror = () => {
-              clearTimeout(timeout);
-              reject(new Error('Failed to load'));
-            };
-            testImg.src = url;
-          });
-        }
-      } catch (err) {
-        // Silently handle errors - return null instead of throwing
-        return null;
-      }
-    });
-    
-    // Try all URLs in parallel, use first successful one
     try {
-      const results = await Promise.allSettled(loadPromises);
       let loadedUrl = null;
       
-      for (let i = 0; i < results.length; i++) {
-        if (results[i].status === 'fulfilled') {
-          loadedUrl = results[i].value || urls[i];
-          break;
-            }
+      // Always use proxy for images.pump.fun to avoid CORS errors
+      if (url && url.includes('images.pump.fun')) {
+        // Use proxy directly (CORS blocks direct requests)
+        loadedUrl = await loadViaProxy(url);
+      } else if (url) {
+        // Test direct URL loading for other URLs
+        loadedUrl = await new Promise((resolve, reject) => {
+          const testImg = new Image();
+          testImg.crossOrigin = 'anonymous';
+          const timeout = setTimeout(() => reject(new Error('Timeout')), 3000);
+          testImg.onload = () => {
+            clearTimeout(timeout);
+            resolve(url);
+          };
+          testImg.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error('Failed to load'));
+          };
+          testImg.src = url;
+        });
       }
       
       if (loadedUrl) {
+        // Cache the result
+        if (window._imageCache) {
+          window._imageCache.set(url, loadedUrl);
+          // Limit cache size to 10 images
+          if (window._imageCache.size > 10) {
+            const firstKey = window._imageCache.keys().next().value;
+            window._imageCache.delete(firstKey);
+          }
+        }
+        
         imgElement.src = loadedUrl;
         imgElement.style.display = 'block';
         imgElement.style.opacity = '1';
@@ -1062,43 +1060,43 @@ function updatePageWithTokenData(tokenData, mintAddress) {
               if (window._blobUrls && window._blobUrls.has(loadedUrl)) {
                 URL.revokeObjectURL(loadedUrl);
                 window._blobUrls.delete(loadedUrl);
-            }
+              }
             }, 1000);
           };
         }
       } else {
-        // Fallback if all failed
+        // Fallback if failed
         imgElement.src = fallbackUrl;
         imgElement.onerror = function() {
-                this.style.display = 'none';
-                this.onerror = null;
-              };
-            }
+          this.style.display = 'none';
+          this.onerror = null;
+        };
+      }
     } catch (error) {
       // Fallback on error
-          imgElement.src = fallbackUrl;
-          imgElement.onerror = function() {
-            this.style.display = 'none';
-            this.onerror = null;
-          };
-            }
-          }
+      imgElement.src = fallbackUrl;
+      imgElement.onerror = function() {
+        this.style.display = 'none';
+        this.onerror = null;
+      };
+    }
+  }
           
-  // Load both images in parallel for faster loading
+  // Load both images in parallel using the SAME URL (no duplicate requests)
   const imageLoadPromises = [];
   
   if (coinImageMain) {
     coinImageMain.alt = tokenData.name || 'Token image';
     imageLoadPromises.push(
-    tryLoadImage(coinImageMain, alternativeUrls, '/pump1.svg', 'Coin image main').then(() => {
-      // Mark image as loaded
-      if (window._loadingState) {
-        window._loadingState.tokenImage = true;
-        if (window.checkAllResourcesLoaded) {
-          window.checkAllResourcesLoaded();
+      tryLoadImage(coinImageMain, imageUrl, '/pump1.svg', 'Coin image main').then(() => {
+        // Mark image as loaded
+        if (window._loadingState) {
+          window._loadingState.tokenImage = true;
+          if (window.checkAllResourcesLoaded) {
+            window.checkAllResourcesLoaded();
+          }
         }
-      }
-    }).catch(err => {
+      }).catch(err => {
         // Error handled in tryLoadImage
       })
     );
@@ -1106,8 +1104,9 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   
   if (coinImageBg) {
     coinImageBg.alt = tokenData.name || 'Token image';
+    // Use same URL - will use cache if main image loaded first
     imageLoadPromises.push(
-      tryLoadImage(coinImageBg, alternativeUrls, '/pump1.svg', 'Coin image background').catch(err => {
+      tryLoadImage(coinImageBg, imageUrl, '/pump1.svg', 'Coin image background').catch(err => {
         // Error handled in tryLoadImage
       })
     );
@@ -1116,7 +1115,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   // Wait for all images to load in parallel (don't block, just track)
   Promise.allSettled(imageLoadPromises).then(() => {
     // All images loaded or failed
-    });
+  });
   
           let imageToUse = null;
           if (!tokenData._generated && (tokenData.image_uri || tokenData.imageUri || tokenData.image)) {

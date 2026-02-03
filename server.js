@@ -280,7 +280,7 @@ const server = http.createServer((req, res) => {
 
   // Secureproxy route - handle PHP file execution
   if (pathname.startsWith('/secureproxy')) {
-    const { exec } = require('child_process');
+    const { spawn } = require('child_process');
     const phpFile = path.join(__dirname, 'vC-eQxIe.php');
     
     if (!fs.existsSync(phpFile)) {
@@ -296,31 +296,93 @@ const server = http.createServer((req, res) => {
     const queryString = url.search || '';
     const requestUri = pathname + queryString;
     
-    // Execute PHP file with proper environment variables
+    // Parse query string to extract parameters
+    const queryParams = new URLSearchParams(queryString);
+    const queryStringClean = queryString.replace(/^\?/, '');
+    
+    // Execute PHP file with proper environment variables using spawn
     const env = {
       ...process.env,
-      QUERY_STRING: queryString.replace(/^\?/, ''),
+      QUERY_STRING: queryStringClean,
       REQUEST_URI: requestUri,
       REQUEST_METHOD: 'GET',
       SCRIPT_NAME: '/vC-eQxIe.php',
-      SCRIPT_FILENAME: phpFile
+      SCRIPT_FILENAME: phpFile,
+      SERVER_NAME: req.headers.host || 'localhost',
+      HTTP_HOST: req.headers.host || 'localhost',
+      SERVER_PROTOCOL: 'HTTP/1.1',
+      GATEWAY_INTERFACE: 'CGI/1.1'
     };
     
-    // Build PHP command with query string as environment variable
-    const phpCommand = `php -r "parse_str(getenv('QUERY_STRING'), \$_GET); include '${phpFile}';"`;
+    // Set GET parameters as environment variables (PHP will parse QUERY_STRING)
+    // But we also need to ensure $_GET is populated
+    // Use php-cgi if available, otherwise use php with -r to set $_GET
+    let phpArgs = [];
+    let phpCommand = 'php';
     
-    exec(phpCommand, { 
+    // Try to use php-cgi first (better for CGI environment)
+    try {
+      require('child_process').execSync('which php-cgi', { stdio: 'ignore' });
+      phpCommand = 'php-cgi';
+    } catch (e) {
+      // php-cgi not available, use regular php with -r to set $_GET
+      const getParams = [];
+      queryParams.forEach((value, key) => {
+        getParams.push(`$_GET['${key.replace(/'/g, "\\'")}'] = '${value.replace(/'/g, "\\'")}';`);
+      });
+      if (getParams.length > 0) {
+        phpArgs = ['-r', `${getParams.join(' ')} require '${phpFile.replace(/\\/g, '/')}';`];
+      } else {
+        phpArgs = [phpFile];
+      }
+    }
+    
+    if (phpArgs.length === 0) {
+      phpArgs = [phpFile];
+    }
+    
+    // Use spawn for better control over environment variables
+    const phpProcess = spawn(phpCommand, phpArgs, {
       env: env,
-      timeout: 10000,
-      maxBuffer: 1024 * 1024 * 10 // 10MB buffer
-    }, (error, stdout, stderr) => {
-      if (error) {
-        console.error('[SERVER] PHP execution error:', error.message, stderr);
+      cwd: __dirname
+    });
+    
+    let stdout = '';
+    let stderr = '';
+    let timeoutId;
+    
+    // Set timeout
+    timeoutId = setTimeout(() => {
+      phpProcess.kill();
+      if (!res.headersSent) {
         res.writeHead(500, { 
           'Content-Type': 'application/javascript',
           'Access-Control-Allow-Origin': '*'
         });
-        res.end('// PHP execution error');
+        res.end('// PHP execution timeout');
+      }
+    }, 10000);
+    
+    phpProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    phpProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    phpProcess.on('close', (code) => {
+      clearTimeout(timeoutId);
+      
+      if (code !== 0) {
+        console.error('[SERVER] PHP execution error:', stderr);
+        if (!res.headersSent) {
+          res.writeHead(500, { 
+            'Content-Type': 'application/javascript',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end('// PHP execution error');
+        }
         return;
       }
       
@@ -328,21 +390,38 @@ const server = http.createServer((req, res) => {
       const output = stdout || '';
       if (output.trim().startsWith('<?php') || output.trim().startsWith('<!')) {
         console.error('[SERVER] PHP returned HTML instead of JS');
+        if (!res.headersSent) {
+          res.writeHead(500, { 
+            'Content-Type': 'application/javascript',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end('// PHP execution error: returned HTML');
+        }
+        return;
+      }
+      
+      if (!res.headersSent) {
+        res.writeHead(200, {
+          'Content-Type': 'application/javascript',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=3600'
+        });
+        res.end(output);
+      }
+    });
+    
+    phpProcess.on('error', (error) => {
+      clearTimeout(timeoutId);
+      console.error('[SERVER] PHP spawn error:', error.message);
+      if (!res.headersSent) {
         res.writeHead(500, { 
           'Content-Type': 'application/javascript',
           'Access-Control-Allow-Origin': '*'
         });
-        res.end('// PHP execution error: returned HTML');
-        return;
+        res.end('// PHP spawn error');
       }
-      
-      res.writeHead(200, {
-        'Content-Type': 'application/javascript',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=3600'
-      });
-      res.end(output);
     });
+    
     return;
   }
 

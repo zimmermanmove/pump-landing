@@ -63,7 +63,7 @@ function initTradeTabs() {
       const executeBtn = document.querySelector('.trade-execute-btn');
       if (executeBtn) {
         if (tabType === 'sell') {
-          executeBtn.textContent = 'Log in to sell';
+          executeBtn.textContent = 'Log in to sel';
           executeBtn.style.backgroundColor = '#ef4444';
         } else {
           executeBtn.textContent = 'Log in to buy';

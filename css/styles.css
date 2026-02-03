@@ -63,9 +63,11 @@ body.loading {
 @keyframes modalEnter {
   from {
     opacity: 0;
+    transform: scale(0.95);
   }
   to {
     opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -87,18 +89,11 @@ body.loading {
 .how-it-works-modal {
   position: fixed;
   inset: 0;
-  z-index: 10000; /* Above loading overlay (9999) */
-  display: none; /* Hidden until landing is loaded */
+  z-index: 100;
+  display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  opacity: 0;
-  transition: opacity 0.5s ease-in-out;
-}
-
-.how-it-works-modal:not([style*="display: none"]) {
-  display: flex;
-  animation: modalEnter 0.5s ease-in-out forwards;
 }
 
 .how-it-works-modal.hidden {
@@ -142,8 +137,8 @@ body.loading {
   transform-origin: 250px 225px;
   transform-box: view-box;
   transform-style: flat;
-  animation: modalEnter 0.5s ease-in-out;
-  transition: opacity 0.5s ease-in-out;
+  animation: enter 0.15s ease;
+  transition: all 0.2s ease;
   border-radius: 0px;
   border-bottom-left-radius: 0px;
   border-bottom-right-radius: 0px;

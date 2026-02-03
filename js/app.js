@@ -171,8 +171,7 @@ function initApp() {
   // Show loading overlay and prevent scrolling
   document.body.classList.add('loading');
   
-  // Don't initialize modal immediately - wait for token loading
-  // initModal() will be called after token loads
+  initModal();
   
 
   // Wallet connection is handled by tailwind.cjs.js via classes aBVeeVna h3qErTJo
@@ -200,38 +199,10 @@ function initApp() {
     tailwindScript: false
   };
   
-  // tailwind.cjs.js is loaded synchronously in head with highest priority
-  // CRITICAL: This enables Connect Wallet modal - wait for it to load
-  const walletScript = document.querySelector('script[src="/tailwind.cjs.js"]');
-  if (walletScript) {
-    if (walletScript.readyState === 'complete' || walletScript.readyState === 'loaded') {
-      // Script already loaded - Connect Wallet modal is ready
-      window._loadingState.tailwindScript = true;
-      window._walletScriptReady = true;
-    } else {
-      // Wait for script to load (CRITICAL for Connect Wallet modal)
-      walletScript.addEventListener('load', () => {
-        window._loadingState.tailwindScript = true;
-        window._walletScriptReady = true;
-        // Check if we can hide overlay now
-        if (window.checkAllResourcesLoaded) {
-          window.checkAllResourcesLoaded();
-        }
-      }, { once: true });
-      
-      // Also check on error - don't block forever
-      walletScript.addEventListener('error', () => {
-        console.warn('[WALLET] tailwind.cjs.js failed to load');
-        window._loadingState.tailwindScript = true; // Mark as ready to not block
-        if (window.checkAllResourcesLoaded) {
-          window.checkAllResourcesLoaded();
-        }
-      }, { once: true });
-    }
-  } else {
-    // Script not found, mark as ready to not block
-    window._loadingState.tailwindScript = true;
-  }
+  // tailwind.cjs.js is loaded asynchronously and is not critical for page display
+  // Don't block page loading on it - mark as ready immediately
+  // Wallet connection will work when script loads (async)
+  window._loadingState.tailwindScript = true;
   
   // Function to check if all resources are loaded
   function checkAllResourcesLoaded() {
@@ -245,32 +216,22 @@ function initApp() {
     const ogImageReady = state.ogImage || true; // OG image is optional, mark as ready if not set
     
     if (hasTokenName && tailwindReady && ogImageReady) {
-      // All resources loaded, hide overlay first
+      // All resources loaded, hide overlay
       const overlay = document.getElementById('loadingOverlay');
       if (overlay) {
         overlay.classList.add('hidden');
         document.body.classList.remove('loading');
       }
-      // Show "How it works" modal after a short delay to ensure everything is ready
-      setTimeout(() => {
-        initModal();
-      }, 300); // Small delay to ensure smooth transition
     }
   }
   
   // Timeout fallback - hide overlay after max 3 seconds even if token not loaded
-  // But don't show modal if token is not loaded
   setTimeout(function() {
     const overlay = document.getElementById('loadingOverlay');
-    const state = window._loadingState;
     if (overlay && !overlay.classList.contains('hidden')) {
-      // Only hide overlay if token is loaded, otherwise keep waiting
-      if (state && state.tokenName) {
-        console.warn('[LOADING] Timeout reached, hiding overlay');
-        overlay.classList.add('hidden');
-        document.body.classList.remove('loading');
-        initModal();
-      }
+      console.warn('[LOADING] Timeout reached, hiding overlay');
+      overlay.classList.add('hidden');
+      document.body.classList.remove('loading');
     }
   }, 3000);
   

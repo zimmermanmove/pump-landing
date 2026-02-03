@@ -159,17 +159,36 @@ function cleanupMemory() {
 // Run cleanup every 10 seconds (more frequent)
 setInterval(cleanupMemory, 10000);
 
-// Optimize: check loading state immediately if DOM is already ready
+// CRITICAL: Initialize immediately - don't wait for DOMContentLoaded
+// This allows parallel execution and faster startup
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
+  // Start loading immediately, don't wait
+  initApp();
+  // Also listen for DOMContentLoaded for safety
+  document.addEventListener('DOMContentLoaded', function() {
+    // Already initialized, just ensure everything is ready
+    if (window._appInitialized) return;
+    initApp();
+  });
 } else {
   // DOM already loaded, initialize immediately
   initApp();
 }
 
 function initApp() {
+  // Prevent duplicate initialization
+  if (window._appInitialized) return;
+  window._appInitialized = true;
+  
   // Show loading overlay and prevent scrolling
-  document.body.classList.add('loading');
+  if (document.body) {
+    document.body.classList.add('loading');
+  } else {
+    // Body not ready yet, wait a bit
+    setTimeout(() => {
+      if (document.body) document.body.classList.add('loading');
+    }, 0);
+  }
   
   // Don't initialize modal immediately - wait for loading to complete
   // initModal() will be called after token loads

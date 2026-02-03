@@ -269,7 +269,7 @@ body.loading {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  background-color: rgb(17, 17, 19);
+  background-color: rgb(12, 12, 14);
   padding: 0rem;
   font-size: 0.875rem;
   color: rgb(255, 255, 255);

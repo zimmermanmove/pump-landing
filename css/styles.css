@@ -101,12 +101,12 @@ body.loading {
   top: 50%;
   z-index: 999;
   display: grid;
-  width: 100%;
+  width: 450px;
   max-width: 500px;
   max-height: 100dvh;
   gap: 1rem;
   border: 1px solid rgb(226, 232, 240);
-  padding: 1.5rem;
+  padding: 24px;
   overflow: auto;
   text-align: center;
   color: white;
@@ -117,6 +117,7 @@ body.loading {
   border-radius: 0.5rem;
   box-sizing: border-box;
   pointer-events: auto;
+  margin-bottom: 81.5px;
 }
 
 @media (min-width: 640px) {

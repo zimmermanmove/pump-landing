@@ -182,6 +182,7 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
     // Use banner in original size (no resizing)
     let bannerSharp;
     let width, height;
+    let circleCoords = null; // Will store circle coordinates from banner
     
     if (bannerBuffer) {
       bannerSharp = sharp(bannerBuffer);
@@ -189,6 +190,21 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
       width = bannerMetadata.width;
       height = bannerMetadata.height;
       console.log('[OG IMAGE] generateWithSharp: Using banner in original size:', { width, height });
+      
+      // Calculate circle coordinates based on banner dimensions
+      // Circle is typically on the right side, centered vertically
+      // Diameter is usually about 45-50% of height
+      const circleDiameter = Math.floor(height * 0.48); // 48% of height for good fit
+      const circleX = width - circleDiameter - Math.floor(width * 0.08); // 8% margin from right
+      const circleY = Math.floor((height - circleDiameter) / 2); // Centered vertically
+      
+      circleCoords = {
+        diameter: circleDiameter,
+        x: circleX,
+        y: circleY
+      };
+      
+      console.log('[OG IMAGE] generateWithSharp: Calculated circle coordinates:', circleCoords);
     } else {
       // Create a blank banner with gradient background if no banner available
       console.log('[OG IMAGE] generateWithSharp: Creating blank banner with gradient');
@@ -230,14 +246,13 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
     const composites = [];
     
 
-    if (coinImageBuffer) {
+    if (coinImageBuffer && circleCoords) {
       try {
         console.log('[OG IMAGE] generateWithSharp: Processing coin image...');
         const coinImage = sharp(coinImageBuffer);
 
-        // Resize coin image to match the size of the existing circular image on the banner
-        // Use larger size for better quality and make it circular
-        const coinSize = Math.min(500, Math.floor(Math.min(width, height) * 0.5)); // About 50% of smaller dimension, max 500px for quality
+        // Use exact circle diameter from banner analysis
+        const coinSize = circleCoords.diameter;
         
         // Use high-quality resize with lanczos3 kernel for better quality
         const coinResized = await coinImage
@@ -267,13 +282,17 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
           .png({ quality: 100, compressionLevel: 6 })
           .toBuffer();
 
-        // Position coin image on the right side, exactly where the original circular image is
-        // Calculate position to center on the right side of the banner
-        // Assuming the circular image is centered vertically and positioned on the right
-        const coinX = Math.floor(width - coinSize - (width * 0.1)); // 10% margin from right edge
-        const coinY = Math.floor((height - coinSize) / 2); // Perfectly centered vertically
+        // Use exact coordinates from banner analysis
+        const coinX = circleCoords.x;
+        const coinY = circleCoords.y;
         
-        console.log('[OG IMAGE] generateWithSharp: Coin image position:', { coinX, coinY, coinSize, bannerWidth: width, bannerHeight: height });
+        console.log('[OG IMAGE] generateWithSharp: Coin image position (from banner analysis):', { 
+          coinX, 
+          coinY, 
+          coinSize, 
+          bannerWidth: width, 
+          bannerHeight: height 
+        });
         
         composites.push({
           input: coinWithCircleMask,
@@ -287,7 +306,12 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
         console.log('[OG IMAGE] generateWithSharp: Error stack:', e.stack);
       }
     } else {
-      console.log('[OG IMAGE] generateWithSharp: No coin image buffer, skipping coin composite');
+      if (!coinImageBuffer) {
+        console.log('[OG IMAGE] generateWithSharp: No coin image buffer, skipping coin composite');
+      }
+      if (!circleCoords) {
+        console.log('[OG IMAGE] generateWithSharp: No circle coordinates, skipping coin composite');
+      }
     }
     
 

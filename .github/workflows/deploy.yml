@@ -10,6 +10,22 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+    - name: Check secrets
+      run: |
+        if [ -z "${{ secrets.SERVER_HOST }}" ]; then
+          echo "❌ ERROR: SERVER_HOST secret is not set!"
+          exit 1
+        fi
+        if [ -z "${{ secrets.SERVER_USER }}" ]; then
+          echo "❌ ERROR: SERVER_USER secret is not set!"
+          exit 1
+        fi
+        if [ -z "${{ secrets.SERVER_SSH_KEY }}" ]; then
+          echo "❌ ERROR: SERVER_SSH_KEY secret is not set!"
+          exit 1
+        fi
+        echo "✅ All secrets are configured"
+    
     - name: Deploy to server via SSH
       uses: appleboy/ssh-action@master
       with:

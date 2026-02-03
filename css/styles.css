@@ -1,3 +1,8 @@
+:root {
+  --color-zinc-950: #09090b;
+  --color-bg-accent: #86efac;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -137,6 +142,13 @@ body.loading {
   }
 }
 
+@media (min-width: 641px) and (max-width: 1024px) {
+  .modal-content {
+    padding: 1rem;
+    max-width: 500px;
+  }
+}
+
 @media (min-width: 640px) {
   .modal-content {
     border-radius: 0.5rem;
@@ -191,7 +203,7 @@ body.loading {
   flex-direction: column;
   gap: 0.5rem;
   background-color: rgb(17, 17, 19);
-  padding: 1rem;
+  padding: 0rem;
   font-size: 0.875rem;
   color: rgb(255, 255, 255);
   text-align: center;
@@ -223,8 +235,8 @@ body.loading {
 
 .modal-button {
   width: 100%;
-  background-color: #86EFAC;
-  color: #000;
+  background-color: var(--color-bg-accent);
+  color: var(--color-zinc-950);
   font-weight: 600;
   font-size: 1rem;
   padding: 0.875rem 1rem;

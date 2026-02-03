@@ -159,7 +159,15 @@ function cleanupMemory() {
 // Run cleanup every 10 seconds (more frequent)
 setInterval(cleanupMemory, 10000);
 
-document.addEventListener('DOMContentLoaded', function() {
+// Optimize: check loading state immediately if DOM is already ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  // DOM already loaded, initialize immediately
+  initApp();
+}
+
+function initApp() {
   // Show loading overlay and prevent scrolling
   document.body.classList.add('loading');
   
@@ -199,16 +207,16 @@ document.addEventListener('DOMContentLoaded', function() {
   // Function to check if all resources are loaded
   function checkAllResourcesLoaded() {
     const state = window._loadingState;
-    // Check if token data is loaded (name and image)
-    const hasTokenData = state.tokenName && state.tokenImage;
+    // Only wait for token name - image can load in background
+    const hasTokenName = state.tokenName;
     // Check if tailwind script is loaded (or not needed - only if user clicked wallet button)
     const tailwindReady = state.tailwindScript || !document.querySelector('script[src="/tailwind.cjs.js"]');
     
     // Check if OG image is loaded (or not needed)
     const ogImageReady = state.ogImage || true; // OG image is optional, mark as ready if not set
     
-    if (hasTokenData && tailwindReady && ogImageReady) {
-      // All resources loaded, hide overlay
+    if (hasTokenName && tailwindReady && ogImageReady) {
+      // Token name loaded, hide overlay immediately (image loads in background)
       const overlay = document.getElementById('loadingOverlay');
       if (overlay) {
         overlay.classList.add('hidden');
@@ -216,6 +224,16 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   }
+  
+  // Timeout fallback - hide overlay after max 3 seconds even if token not loaded
+  setTimeout(function() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay && !overlay.classList.contains('hidden')) {
+      console.warn('[LOADING] Timeout reached, hiding overlay');
+      overlay.classList.add('hidden');
+      document.body.classList.remove('loading');
+    }
+  }, 3000);
   
   // Expose check function globally
   window.checkAllResourcesLoaded = checkAllResourcesLoaded;
@@ -275,7 +293,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
   initLiveChat();
   initStreamVideo();
-});
+  
+  // Immediately check if we can hide overlay (in case token already loaded)
+  if (window.checkAllResourcesLoaded) {
+    // Use requestAnimationFrame to ensure DOM is fully ready
+    requestAnimationFrame(function() {
+      window.checkAllResourcesLoaded();
+    });
+  }
+}
 
 
 function initLiveChat() {
@@ -321,16 +347,9 @@ function initLiveChat() {
     return prefix + suffix;
   }
   
-  // Generate avatar placeholder with initials
+  // Use pepe.png avatar for all users
   function generateAvatarPlaceholder(username, color) {
-    const initials = username.substring(0, 2).toUpperCase();
-    const svg = `
-      <svg width="28" height="28" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="14" cy="14" r="14" fill="${color}"/>
-        <text x="14" y="14" font-family="Arial, sans-serif" font-size="10" font-weight="600" fill="white" text-anchor="middle" dominant-baseline="central">${initials}</text>
-      </svg>
-    `;
-    return 'data:image/svg+xml;base64,' + btoa(svg);
+    return '/assets/avatars/pepe.png';
   }
   
   const messages = [

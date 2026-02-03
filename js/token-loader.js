@@ -768,13 +768,13 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     if (window._loadingState) {
       if (tokenData.name) {
         window._loadingState.tokenName = true;
+        // Immediately check if we can hide overlay (don't wait for image)
+        if (window.checkAllResourcesLoaded) {
+          window.checkAllResourcesLoaded();
+        }
       }
       if (tokenData.image_uri || tokenData.imageUri || tokenData.image) {
         window._loadingState.tokenImage = true;
-      }
-      // Check if all resources are loaded
-      if (window.checkAllResourcesLoaded) {
-        window.checkAllResourcesLoaded();
       }
     }
   }

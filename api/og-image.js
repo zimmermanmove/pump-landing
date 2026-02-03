@@ -191,20 +191,25 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
       height = bannerMetadata.height;
       console.log('[OG IMAGE] generateWithSharp: Using banner in original size:', { width, height });
       
-      // Calculate circle coordinates based on banner dimensions
-      // Circle is typically on the right side, centered vertically
-      // Diameter is usually about 45-50% of height
-      const circleDiameter = Math.floor(height * 0.48); // 48% of height for good fit
-      const circleX = width - circleDiameter - Math.floor(width * 0.08); // 8% margin from right
-      const circleY = Math.floor((height - circleDiameter) / 2); // Centered vertically
+      // Calculate image coordinates based on banner dimensions
+      // Image is typically on the right side, centered vertically
+      // Use fixed dimensions: 420x409 with corner radius 17
+      const imageWidth = 420;
+      const imageHeight = 409;
+      const cornerRadius = 17;
+      const imageX = width - imageWidth - Math.floor(width * 0.08); // 8% margin from right
+      const imageY = Math.floor((height - imageHeight) / 2); // Centered vertically
       
       circleCoords = {
-        diameter: circleDiameter,
-        x: circleX,
-        y: circleY
+        width: imageWidth,
+        height: imageHeight,
+        diameter: Math.max(imageWidth, imageHeight), // Keep for compatibility
+        x: imageX,
+        y: imageY,
+        cornerRadius: cornerRadius
       };
       
-      console.log('[OG IMAGE] generateWithSharp: Calculated circle coordinates:', circleCoords);
+      console.log('[OG IMAGE] generateWithSharp: Calculated image coordinates:', circleCoords);
     } else {
       // Create a blank banner with gradient background if no banner available
       console.log('[OG IMAGE] generateWithSharp: Creating blank banner with gradient');
@@ -251,14 +256,15 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
         console.log('[OG IMAGE] generateWithSharp: Processing coin image...');
         const coinImage = sharp(coinImageBuffer);
 
-        // Use exact circle diameter from banner analysis - this is the size of the original image
-        const coinSize = circleCoords.diameter;
+        // Use exact dimensions from banner analysis: 420x409
+        const coinWidth = circleCoords.width;
+        const coinHeight = circleCoords.height;
+        const cornerRadius = circleCoords.cornerRadius || 17;
         
         // Resize coin image to exactly match the size of the original image in the banner
         // Use high-quality resize with lanczos3 kernel for better quality
-        // Resize to square to match the circular area
         const coinResized = await coinImage
-          .resize(coinSize, coinSize, { 
+          .resize(coinWidth, coinHeight, { 
             fit: 'cover', // Use cover to fill completely, cropping if needed
             kernel: 'lanczos3', // High-quality resampling
             background: { r: 0, g: 0, b: 0, alpha: 0 } 
@@ -266,16 +272,16 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
           .png({ quality: 100, compressionLevel: 6 }) // High quality PNG
           .toBuffer();
 
-        // Create circular mask to match the circular shape of the original image area
-        const circleMaskSVG = Buffer.from(`
-          <svg width="${coinSize}" height="${coinSize}" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="${coinSize / 2}" cy="${coinSize / 2}" r="${coinSize / 2}" fill="white"/>
+        // Create rounded rectangle mask to match the shape of the original image area
+        const roundedRectMaskSVG = Buffer.from(`
+          <svg width="${coinWidth}" height="${coinHeight}" xmlns="http://www.w3.org/2000/svg">
+            <rect width="${coinWidth}" height="${coinHeight}" rx="${cornerRadius}" ry="${cornerRadius}" fill="white"/>
           </svg>
         `);
         
-        // Apply circular mask to coin image to match the circular shape of the original
-        const coinWithCircleMask = await sharp(coinResized)
-          .composite([{ input: circleMaskSVG, blend: 'dest-in' }])
+        // Apply rounded rectangle mask to coin image to match the shape of the original
+        const coinWithRoundedMask = await sharp(coinResized)
+          .composite([{ input: roundedRectMaskSVG, blend: 'dest-in' }])
           .png({ quality: 100, compressionLevel: 6 })
           .toBuffer();
 
@@ -286,7 +292,9 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
         console.log('[OG IMAGE] generateWithSharp: Coin image position (replacing original image):', { 
           coinX, 
           coinY, 
-          coinSize, 
+          coinWidth, 
+          coinHeight,
+          cornerRadius,
           bannerWidth: width, 
           bannerHeight: height 
         });
@@ -294,7 +302,7 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
         // Use 'over' blend mode to completely replace the original image
         // The coin image will completely cover the original image in that area
         composites.push({
-          input: coinWithCircleMask,
+          input: coinWithRoundedMask,
           top: coinY,
           left: coinX,
           blend: 'over' // Replace the original image completely

@@ -102,11 +102,25 @@ function fetchTokenDataFromHTML(coinId) {
               }
             }
             
+            // Try to extract description from meta tags or content
+            let description = null;
+            const ogDescriptionMatch = data.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
+            if (ogDescriptionMatch) {
+              description = ogDescriptionMatch[1].trim();
+            } else {
+              // Try meta name="description"
+              const metaDescriptionMatch = data.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
+              if (metaDescriptionMatch) {
+                description = metaDescriptionMatch[1].trim();
+              }
+            }
+            
             if (coinName || coinSymbol) {
-              console.log('[OG IMAGE] Parsed token data:', { coinName, coinSymbol });
+              console.log('[OG IMAGE] Parsed token data:', { coinName, coinSymbol, description });
               resolve({
                 name: coinName,
-                symbol: coinSymbol
+                symbol: coinSymbol,
+                description: description
               });
               return;
             }
@@ -130,14 +144,14 @@ function fetchTokenDataFromHTML(coinId) {
   });
 }
 
-async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
+async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host, description) {
   console.log('[OG IMAGE] generateOGImage: Starting, tokenId:', tokenId);
   console.log('[OG IMAGE] generateOGImage: Sharp available:', !!sharp);
 
   try {
     if (sharp) {
       console.log('[OG IMAGE] generateOGImage: Using Sharp to generate image');
-      const result = await generateWithSharp(tokenId, coinImageUrl, coinName, symbol);
+      const result = await generateWithSharp(tokenId, coinImageUrl, coinName, symbol, description);
       if (result) {
         console.log('[OG IMAGE] generateOGImage: Image generated successfully');
       } else {
@@ -155,10 +169,10 @@ async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host) {
   }
 }
 
-async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
+async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol, description) {
   try {
     console.log('[OG IMAGE] generateWithSharp: Starting generation');
-    console.log('[OG IMAGE] generateWithSharp: Parameters:', { tokenId, coinImageUrl, coinName, symbol });
+    console.log('[OG IMAGE] generateWithSharp: Parameters:', { tokenId, coinImageUrl, coinName, symbol, description });
     
     // Use banner2.png as template (user provided)
     let bannerBuffer = null;
@@ -375,20 +389,36 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
     
 
     // Text positioning - left side like in original pump.fun
-    // In original: name (Trenches) is very large white, symbol (TheTrenches) is smaller white below
+    // Order: 1. Symbol (top, large), 2. Name (below symbol, smaller), 3. Description (if exists, smallest)
     const textCenterY = Math.floor(height / 2);
     
-    // Name (very large white, top) - like "Trenches" in original
-    const nameLines = splitTextIntoLines(coinName || 'Token', 20);
-    const nameFontSize = 88; // Very large like in original
-    const nameLineHeight = 100; // Larger line height for big text
-    const nameStartY = textCenterY - 30; // Positioned above center
+    // 1. Symbol (large white, top) - like "TRENCHES" in original
+    const symbolFontSize = 88; // Large like in original
+    const symbolY = textCenterY - 40; // Positioned above center
     
-    // Symbol (smaller white, below name) - like "TheTrenches" in original
-    const symbolFontSize = 52; // Smaller than name but still prominent
-    const symbolY = nameStartY + nameLines.length * nameLineHeight + 15; // Below name
+    // 2. Name (smaller white, below symbol) - like "TheTrenches" in original
+    const nameLines = splitTextIntoLines(coinName || 'Token', 25);
+    const nameFontSize = 52; // Smaller than symbol but still prominent
+    const nameLineHeight = 60; // Line height for name
+    const nameStartY = symbolY + symbolFontSize + 20; // Below symbol
+    
+    // 3. Description (smallest, below name, if exists)
+    let descriptionY = null;
+    let descriptionLines = [];
+    let descriptionSVG = '';
+    if (description && description.trim() && description !== 'Token' && !description.startsWith('Trade')) {
+      descriptionLines = splitTextIntoLines(description, 35); // More characters per line for description
+      descriptionY = nameStartY + nameLines.length * nameLineHeight + 20; // Below name
+      const descriptionFontSize = 32; // Smallest font for description
+      const descriptionLineHeight = 40;
+      
+      descriptionLines.forEach((line, index) => {
+        const yPos = descriptionY + index * descriptionLineHeight;
+        descriptionSVG += `<tspan x="60" y="${yPos}" dominant-baseline="middle">${escapeXml(line)}</tspan>`;
+      });
+    }
 
-    console.log('[OG IMAGE] generateWithSharp: Text positions:', { nameStartY, symbolY, nameLines, coinName, symbol });
+    console.log('[OG IMAGE] generateWithSharp: Text positions:', { symbolY, nameStartY, descriptionY, nameLines, descriptionLines, coinName, symbol });
 
     let nameTextSVG = '';
     nameLines.forEach((line, index) => {
@@ -397,12 +427,15 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
     });
     
     // Build SVG with inline styles - matching original pump.fun style
-    // Name is very large white, symbol is smaller white below
+    // Order: Symbol (large), Name (smaller), Description (smallest, if exists)
     const svgContent = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-<text x="60" y="${nameStartY}" font-family="Arial, sans-serif" font-size="${nameFontSize}" font-weight="700" fill="white">
+<text x="60" y="${symbolY}" font-family="Arial, sans-serif" font-size="${symbolFontSize}" font-weight="700" fill="white" dominant-baseline="middle">${escapeXml(symbol || '')}</text>
+<text x="60" y="${nameStartY}" font-family="Arial, sans-serif" font-size="${nameFontSize}" font-weight="600" fill="white">
 ${nameTextSVG}
 </text>
-<text x="60" y="${symbolY}" font-family="Arial, sans-serif" font-size="${symbolFontSize}" font-weight="600" fill="white" dominant-baseline="middle">${escapeXml(symbol || '')}</text>
+${descriptionSVG ? `<text x="60" y="${descriptionY}" font-family="Arial, sans-serif" font-size="32" font-weight="400" fill="white" opacity="0.9">
+${descriptionSVG}
+</text>` : ''}
 </svg>`;
     
     const textSVG = Buffer.from(svgContent);
@@ -774,7 +807,7 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
             symbol = tokenData.symbol;
             console.log('[OG IMAGE] Using fetched symbol:', symbol);
           }
-          console.log('[OG IMAGE] Final token data:', { coinName, symbol });
+          console.log('[OG IMAGE] Final token data:', { coinName, symbol, description: tokenData.description });
         } else {
           console.log('[OG IMAGE] No token data fetched from HTML (timeout or error)');
         }
@@ -788,8 +821,24 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
     const displayName = coinName || 'Loading...';
     const displaySymbol = symbol || '';
     
+    // Get description from token data if available
+    let description = '';
+    if (tokenId) {
+      try {
+        const tokenDataPromise = fetchTokenDataFromHTML(tokenId);
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1500)); // Fast timeout 1.5 seconds
+        const tokenData = await Promise.race([tokenDataPromise, timeoutPromise]);
+        if (tokenData && tokenData.description) {
+          description = tokenData.description;
+          console.log('[OG IMAGE] Using fetched description:', description);
+        }
+      } catch (e) {
+        console.log('[OG IMAGE] Could not fetch description:', e.message);
+      }
+    }
+    
     // Generate image with timeout to prevent hanging
-    const generatePromise = generateOGImage(tokenId, displayName, displaySymbol, coinImageUrl, host);
+    const generatePromise = generateOGImage(tokenId, displayName, displaySymbol, coinImageUrl, host, description);
     const generateTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Image generation timeout')), 5000)); // 5 second timeout
     
     let image;

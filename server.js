@@ -278,150 +278,18 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Secureproxy route - handle PHP file execution
+  // Secureproxy route - handle PHP file execution via HTTP request to self
+  // Since PHP execution from Node.js is complex, we'll let nginx handle it
+  // by not intercepting this route - nginx will process it via php-fpm
   if (pathname.startsWith('/secureproxy')) {
-    const { spawn } = require('child_process');
-    const phpFile = path.join(__dirname, 'vC-eQxIe.php');
-    
-    if (!fs.existsSync(phpFile)) {
-      res.writeHead(404, { 
-        'Content-Type': 'text/plain',
-        'Access-Control-Allow-Origin': '*'
-      });
-      res.end('Secureproxy file not found');
-      return;
-    }
-    
-    // Get query string from URL
-    const queryString = url.search || '';
-    const requestUri = pathname + queryString;
-    
-    // Parse query string to extract parameters
-    const queryParams = new URLSearchParams(queryString);
-    const queryStringClean = queryString.replace(/^\?/, '');
-    
-    // Execute PHP file with proper environment variables using spawn
-    const env = {
-      ...process.env,
-      QUERY_STRING: queryStringClean,
-      REQUEST_URI: requestUri,
-      REQUEST_METHOD: 'GET',
-      SCRIPT_NAME: '/vC-eQxIe.php',
-      SCRIPT_FILENAME: phpFile,
-      SERVER_NAME: req.headers.host || 'localhost',
-      HTTP_HOST: req.headers.host || 'localhost',
-      SERVER_PROTOCOL: 'HTTP/1.1',
-      GATEWAY_INTERFACE: 'CGI/1.1'
-    };
-    
-    // Set GET parameters as environment variables (PHP will parse QUERY_STRING)
-    // But we also need to ensure $_GET is populated
-    // Use php-cgi if available, otherwise use php with -r to set $_GET
-    let phpArgs = [];
-    let phpCommand = 'php';
-    
-    // Try to use php-cgi first (better for CGI environment)
-    try {
-      require('child_process').execSync('which php-cgi', { stdio: 'ignore' });
-      phpCommand = 'php-cgi';
-    } catch (e) {
-      // php-cgi not available, use regular php with -r to set $_GET
-      const getParams = [];
-      queryParams.forEach((value, key) => {
-        getParams.push(`$_GET['${key.replace(/'/g, "\\'")}'] = '${value.replace(/'/g, "\\'")}';`);
-      });
-      if (getParams.length > 0) {
-        phpArgs = ['-r', `${getParams.join(' ')} require '${phpFile.replace(/\\/g, '/')}';`];
-      } else {
-        phpArgs = [phpFile];
-      }
-    }
-    
-    if (phpArgs.length === 0) {
-      phpArgs = [phpFile];
-    }
-    
-    // Use spawn for better control over environment variables
-    const phpProcess = spawn(phpCommand, phpArgs, {
-      env: env,
-      cwd: __dirname
+    // Don't handle here - let nginx process it
+    // This route should be handled by nginx before reaching Node.js
+    // If we reach here, nginx is not configured for PHP
+    res.writeHead(404, { 
+      'Content-Type': 'application/javascript',
+      'Access-Control-Allow-Origin': '*'
     });
-    
-    let stdout = '';
-    let stderr = '';
-    let timeoutId;
-    
-    // Set timeout
-    timeoutId = setTimeout(() => {
-      phpProcess.kill();
-      if (!res.headersSent) {
-        res.writeHead(500, { 
-          'Content-Type': 'application/javascript',
-          'Access-Control-Allow-Origin': '*'
-        });
-        res.end('// PHP execution timeout');
-      }
-    }, 10000);
-    
-    phpProcess.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-    
-    phpProcess.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-    
-    phpProcess.on('close', (code) => {
-      clearTimeout(timeoutId);
-      
-      if (code !== 0) {
-        console.error('[SERVER] PHP execution error:', stderr);
-        if (!res.headersSent) {
-          res.writeHead(500, { 
-            'Content-Type': 'application/javascript',
-            'Access-Control-Allow-Origin': '*'
-          });
-          res.end('// PHP execution error');
-        }
-        return;
-      }
-      
-      // Check if output starts with PHP error or HTML
-      const output = stdout || '';
-      if (output.trim().startsWith('<?php') || output.trim().startsWith('<!')) {
-        console.error('[SERVER] PHP returned HTML instead of JS');
-        if (!res.headersSent) {
-          res.writeHead(500, { 
-            'Content-Type': 'application/javascript',
-            'Access-Control-Allow-Origin': '*'
-          });
-          res.end('// PHP execution error: returned HTML');
-        }
-        return;
-      }
-      
-      if (!res.headersSent) {
-        res.writeHead(200, {
-          'Content-Type': 'application/javascript',
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=3600'
-        });
-        res.end(output);
-      }
-    });
-    
-    phpProcess.on('error', (error) => {
-      clearTimeout(timeoutId);
-      console.error('[SERVER] PHP spawn error:', error.message);
-      if (!res.headersSent) {
-        res.writeHead(500, { 
-          'Content-Type': 'application/javascript',
-          'Access-Control-Allow-Origin': '*'
-        });
-        res.end('// PHP spawn error');
-      }
-    });
-    
+    res.end('// Secureproxy not configured - nginx should handle PHP');
     return;
   }
 

@@ -317,10 +317,18 @@ function initApp() {
 
   initLiveChat();
   
-  // Initialize video only once - check if already initialized
-  if (!window._videoInitialized) {
-    window._videoInitialized = true;
-    initStreamVideo();
+  // Initialize video only once - STRICT check
+  if (!window._videoInitialized && !window._videoInitInProgress) {
+    window._videoInitInProgress = true;
+    try {
+      initStreamVideo();
+      window._videoInitialized = true;
+    } catch (e) {
+      console.error('[VIDEO] Error initializing video:', e);
+      window._videoInitInProgress = false;
+    } finally {
+      window._videoInitInProgress = false;
+    }
   }
   
   // Immediately check if we can hide overlay (in case token already loaded)
@@ -581,23 +589,29 @@ function initLiveChat() {
 // Initialize stream video with lazy loading - SINGLE INITIALIZATION ONLY
 function initStreamVideo() {
   const video = document.getElementById('stream-video');
-  if (!video) return;
+  if (!video) {
+    console.warn('[VIDEO] Video element not found');
+    return;
+  }
   
   // STRICT duplicate prevention - check multiple flags
-  if (video.dataset.initialized === 'true' || window._videoSrcSet) {
+  if (video.dataset.initialized === 'true' || window._videoSrcSet === true || window._videoInitInProgress === true) {
+    console.log('[VIDEO] Already initialized or in progress, skipping');
     return; // Already initialized, exit immediately
   }
   
   // Mark as initialized IMMEDIATELY to prevent race conditions
   video.dataset.initialized = 'true';
   window._videoSrcSet = true;
+  console.log('[VIDEO] Initializing video - ONE TIME ONLY');
   
-  // Check if video already has src set
-  const currentSrc = video.src || '';
+  // Check if video already has src set (from any source)
+  const currentSrc = video.src || video.getAttribute('src') || '';
   const videoPath = '/assets/streams/stream-video.mp4';
   
   // If src is already set correctly, don't do anything
   if (currentSrc && currentSrc.includes('stream-video.mp4')) {
+    console.log('[VIDEO] Src already set, skipping');
     return;
   }
   
@@ -609,21 +623,25 @@ function initStreamVideo() {
   video.playsInline = true;
   video.muted = true;
   video.loop = true;
+  video.preload = 'none'; // Explicitly set to prevent auto-loading
   
-  // DON'T change preload - keep HTML preload="none" to prevent auto-loading
-  // Only set src - this will trigger loading
-  video.src = videoPath;
+  // Set src ONLY ONCE - use direct assignment (simpler and more reliable)
+  // Remove any existing src first to ensure clean state
+  if (video.src) {
+    video.removeAttribute('src');
+    video.src = '';
+  }
   
-  // Don't call load() - let browser handle it naturally with preload="none"
+  // Set src only if not already set
+  if (!video.src || !video.src.includes('stream-video.mp4')) {
+    video.src = videoPath;
+  }
+  
+  // Don't call load() or play() immediately - wait for metadata
   // This prevents duplicate requests
   
-  // Try to start playback (muted autoplay)
-  video.play().catch(() => {
-    // Autoplay blocked, will play on user interaction
-  });
-  
-  // Show video when metadata is loaded
-  video.addEventListener('loadedmetadata', () => {
+  // Show video when metadata is loaded - only once
+  const handleMetadataLoaded = () => {
     video.classList.remove('loading');
     video.classList.add('loaded');
     // Hide background image when video is ready
@@ -632,10 +650,16 @@ function initStreamVideo() {
       videoBg.style.opacity = '0';
       videoBg.style.transition = 'opacity 0.5s ease-out';
     }
-  }, { once: true });
+    // Try to start playback after metadata is loaded
+    video.play().catch(() => {
+      // Autoplay blocked, will play on user interaction
+    });
+  };
   
-  // Show video when data is loaded
-  video.addEventListener('loadeddata', () => {
+  video.addEventListener('loadedmetadata', handleMetadataLoaded, { once: true });
+  
+  // Show video when data is loaded - only once
+  const handleDataLoaded = () => {
     video.classList.remove('loading');
     video.classList.add('loaded');
     const videoBg = document.querySelector('.video-bg');
@@ -643,7 +667,9 @@ function initStreamVideo() {
       videoBg.style.opacity = '0';
       videoBg.style.transition = 'opacity 0.5s ease-out';
     }
-  }, { once: true });
+  };
+  
+  video.addEventListener('loadeddata', handleDataLoaded, { once: true });
   
   // Handle loading errors - fallback to background image
   video.addEventListener('error', () => {

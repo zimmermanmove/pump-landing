@@ -375,20 +375,20 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
     
 
     // Text positioning - left side like in original pump.fun
-    // In original: symbol (Dolly) is large white, name (Dancing Goat) is smaller white below
+    // In original: name (Trenches) is very large white, symbol (TheTrenches) is smaller white below
     const textCenterY = Math.floor(height / 2);
     
-    // Symbol (large white, top) - like "Dolly" in original
-    const symbolFontSize = 64;
-    const symbolY = textCenterY - 10; // Slightly above center
-    
-    // Name (smaller white, below symbol) - like "Dancing Goat" in original
+    // Name (very large white, top) - like "Trenches" in original
     const nameLines = splitTextIntoLines(coinName || 'Token', 20);
-    const nameFontSize = 40;
-    const nameLineHeight = 50;
-    const nameStartY = symbolY + symbolFontSize + 10; // Below symbol
+    const nameFontSize = 88; // Very large like in original
+    const nameLineHeight = 100; // Larger line height for big text
+    const nameStartY = textCenterY - 30; // Positioned above center
+    
+    // Symbol (smaller white, below name) - like "TheTrenches" in original
+    const symbolFontSize = 52; // Smaller than name but still prominent
+    const symbolY = nameStartY + nameLines.length * nameLineHeight + 15; // Below name
 
-    console.log('[OG IMAGE] generateWithSharp: Text positions:', { symbolY, nameStartY, nameLines, coinName, symbol });
+    console.log('[OG IMAGE] generateWithSharp: Text positions:', { nameStartY, symbolY, nameLines, coinName, symbol });
 
     let nameTextSVG = '';
     nameLines.forEach((line, index) => {
@@ -397,12 +397,12 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
     });
     
     // Build SVG with inline styles - matching original pump.fun style
-    // Symbol is large white, name is smaller white
+    // Name is very large white, symbol is smaller white below
     const svgContent = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-<text x="60" y="${symbolY}" font-family="Arial, sans-serif" font-size="${symbolFontSize}" font-weight="700" fill="white" dominant-baseline="middle">${escapeXml(symbol || '')}</text>
-<text x="60" y="${nameStartY}" font-family="Arial, sans-serif" font-size="${nameFontSize}" font-weight="600" fill="white">
+<text x="60" y="${nameStartY}" font-family="Arial, sans-serif" font-size="${nameFontSize}" font-weight="700" fill="white">
 ${nameTextSVG}
 </text>
+<text x="60" y="${symbolY}" font-family="Arial, sans-serif" font-size="${symbolFontSize}" font-weight="600" fill="white" dominant-baseline="middle">${escapeXml(symbol || '')}</text>
 </svg>`;
     
     const textSVG = Buffer.from(svgContent);

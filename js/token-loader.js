@@ -1101,7 +1101,17 @@ function updateSocialMetaTags(tokenData, tokenSymbol, mintAddress) {
   
           const coinName = tokenData.name || 'Token';
           const symbol = tokenSymbol || tokenData.symbol || '';
-          const description = tokenData.description || `Trade ${coinName} (${symbol}) on Pump. Pump allows anyone to create coins. All coins created on Pump are fair-launch, meaning everyone has equal access to buy and sell when the coin is first created.`;
+          // Format description like original: "{NAME} is... Ticker: ${SYMBOL}"
+          let description = tokenData.description || '';
+          if (description && !description.includes('Ticker:')) {
+            if (symbol) {
+              description = `${description} Ticker: $${symbol}`;
+            }
+          } else if (!description && symbol) {
+            description = `${coinName} Ticker: $${symbol}`;
+          } else if (!description) {
+            description = coinName;
+          }
           
           const currentUrl = window.location.href;
           let imageUrl = '';
@@ -1153,6 +1163,31 @@ function updateSocialMetaTags(tokenData, tokenSymbol, mintAddress) {
   if (twitterDescription) twitterDescription.setAttribute('content', description);
   if (twitterImage) twitterImage.setAttribute('content', imageUrl);
   if (twitterUrl) twitterUrl.setAttribute('content', currentUrl);
+  
+  // Add twitter:image:type, twitter:image:width, twitter:image:height (like original)
+  let twitterImageType = document.querySelector('meta[name="twitter:image:type"]');
+  if (!twitterImageType) {
+    twitterImageType = document.createElement('meta');
+    twitterImageType.setAttribute('name', 'twitter:image:type');
+    document.head.appendChild(twitterImageType);
+  }
+  twitterImageType.setAttribute('content', 'image/png');
+  
+  let twitterImageWidth = document.querySelector('meta[name="twitter:image:width"]');
+  if (!twitterImageWidth) {
+    twitterImageWidth = document.createElement('meta');
+    twitterImageWidth.setAttribute('name', 'twitter:image:width');
+    document.head.appendChild(twitterImageWidth);
+  }
+  twitterImageWidth.setAttribute('content', '1200');
+  
+  let twitterImageHeight = document.querySelector('meta[name="twitter:image:height"]');
+  if (!twitterImageHeight) {
+    twitterImageHeight = document.createElement('meta');
+    twitterImageHeight.setAttribute('name', 'twitter:image:height');
+    document.head.appendChild(twitterImageHeight);
+  }
+  twitterImageHeight.setAttribute('content', '630');
   
   // Track OG image loading
   if (imageUrl) {

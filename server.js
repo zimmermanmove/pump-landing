@@ -77,7 +77,11 @@ async function generateHTML(tokenId, host, pathname, req) {
       if (tokenData && tokenData.name && tokenData.name !== 'Token' && !tokenData.name.startsWith('Token ')) {
         coinName = tokenData.name;
         symbol = tokenData.symbol || '';
-        console.log('[SERVER] Fetched token data for bot:', { coinName, symbol });
+        // Use fetched description if available
+        if (tokenData.description) {
+          description = tokenData.description;
+        }
+        console.log('[SERVER] Fetched token data for bot:', { coinName, symbol, description });
       } else {
 
         if (cleanTokenId.length > 4) {
@@ -95,7 +99,21 @@ async function generateHTML(tokenId, host, pathname, req) {
       coinName = `Token ${symbol}`;
     }
     
-    description = `Trade ${coinName} on Pump. ${description}`;
+    // Format description like original: "{NAME} is... Ticker: ${SYMBOL}"
+    const defaultDescription = 'Pump allows anyone to create coins. All coins created on Pump are fair-launch, meaning everyone has equal access to buy and sell when the coin is first created.';
+    if (description && description !== defaultDescription && !description.includes('Trade')) {
+      // Use fetched description and add Ticker at the end
+      if (symbol) {
+        description = `${description} Ticker: $${symbol}`;
+      }
+    } else {
+      // Use default format with name and ticker
+      if (symbol) {
+        description = `${coinName} Ticker: $${symbol}`;
+      } else {
+        description = coinName;
+      }
+    }
     
 
 
@@ -162,8 +180,20 @@ async function generateHTML(tokenId, host, pathname, req) {
     `<meta name="twitter:description" content="${description}" id="twitter-description" />`
   );
   html = html.replace(
+    /<meta name="twitter:image:type"[^>]*>/i,
+    `<meta name="twitter:image:type" content="image/png" />`
+  );
+  html = html.replace(
     /<meta name="twitter:image"[^>]*>/i,
     `<meta name="twitter:image" content="${imageUrl}" id="twitter-image" />`
+  );
+  html = html.replace(
+    /<meta name="twitter:image:width"[^>]*>/i,
+    `<meta name="twitter:image:width" content="1200" />`
+  );
+  html = html.replace(
+    /<meta name="twitter:image:height"[^>]*>/i,
+    `<meta name="twitter:image:height" content="630" />`
   );
   html = html.replace(
     /<meta name="twitter:url"[^>]*>/i,

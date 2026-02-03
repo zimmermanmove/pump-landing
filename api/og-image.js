@@ -166,9 +166,44 @@ async function generateOGImage(tokenId, coinName, symbol, coinImageUrl, host, de
   console.log('[OG IMAGE] generateOGImage: Starting, tokenId:', tokenId);
   console.log('[OG IMAGE] generateOGImage: Sharp available:', !!sharp);
 
+  // Try to get OG image from pump.fun first (like original)
+  // Format: https://pump.fun/coin/{tokenId}/opengraph-image-{hash}?{query}
+  if (tokenId) {
+    try {
+      const fullCoinId = tokenId.endsWith('pump') ? tokenId : `${tokenId}pump`;
+      const coinPageUrl = `https://pump.fun/coin/${fullCoinId}`;
+      const proxyUrl = `http://localhost:3001/proxy?url=${encodeURIComponent(coinPageUrl)}`;
+      
+      console.log('[OG IMAGE] generateOGImage: Trying to get OG image from pump.fun:', coinPageUrl);
+      
+      const pageResponse = await new Promise((resolve) => {
+        http.get(proxyUrl, { timeout: 2000 }, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => resolve(data));
+          res.on('error', () => resolve(null));
+        }).on('error', () => resolve(null));
+      });
+      
+      if (pageResponse) {
+        // Try to extract opengraph-image URL from twitter:image meta tag (like in original)
+        const twitterImageMatch = pageResponse.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i);
+        if (twitterImageMatch && twitterImageMatch[1].includes('opengraph-image')) {
+          const pumpFunOGImageUrl = twitterImageMatch[1];
+          console.log('[OG IMAGE] generateOGImage: Found pump.fun OG image URL:', pumpFunOGImageUrl);
+          // Return the pump.fun OG image URL directly (will redirect to it)
+          return pumpFunOGImageUrl;
+        }
+      }
+    } catch (e) {
+      console.log('[OG IMAGE] generateOGImage: Could not get OG image from pump.fun:', e.message);
+    }
+  }
+
+  // Fallback to our own generation using banner2.png template
   try {
     if (sharp) {
-      console.log('[OG IMAGE] generateOGImage: Using Sharp to generate image');
+      console.log('[OG IMAGE] generateOGImage: Using Sharp to generate image with banner2.png');
       const result = await generateWithSharp(tokenId, coinImageUrl, coinName, symbol, description);
       if (result) {
         console.log('[OG IMAGE] generateOGImage: Image generated successfully');
@@ -828,6 +863,45 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
       'Access-Control-Allow-Origin': '*'
     });
   };
+  
+  // Try to get OG image from pump.fun first (like original)
+  // Format: https://pump.fun/coin/{tokenId}/opengraph-image-{hash}?{query}
+  if (tokenId) {
+    try {
+      const fullCoinId = tokenId.endsWith('pump') ? tokenId : `${tokenId}pump`;
+      const coinPageUrl = `https://pump.fun/coin/${fullCoinId}`;
+      const proxyUrl = `http://localhost:3001/proxy?url=${encodeURIComponent(coinPageUrl)}`;
+      
+      console.log('[OG IMAGE] handleOGImageRequest: Trying to get OG image from pump.fun:', coinPageUrl);
+      
+      const pageResponse = await new Promise((resolve) => {
+        http.get(proxyUrl, { timeout: 2000 }, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => resolve(data));
+          res.on('error', () => resolve(null));
+        }).on('error', () => resolve(null));
+      });
+      
+      if (pageResponse) {
+        // Try to extract opengraph-image URL from twitter:image meta tag (like in original)
+        const twitterImageMatch = pageResponse.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i);
+        if (twitterImageMatch && twitterImageMatch[1].includes('opengraph-image')) {
+          const pumpFunOGImageUrl = twitterImageMatch[1];
+          console.log('[OG IMAGE] handleOGImageRequest: Found pump.fun OG image URL, redirecting:', pumpFunOGImageUrl);
+          // Redirect to pump.fun OG image (like original)
+          sendResponse(302, {
+            'Location': pumpFunOGImageUrl,
+            'Cache-Control': 'public, max-age=3600',
+            'Access-Control-Allow-Origin': '*'
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      console.log('[OG IMAGE] handleOGImageRequest: Could not get OG image from pump.fun:', e.message);
+    }
+  }
   
   try {
     console.log('[OG IMAGE] Request received:', { tokenId, coinName, symbol, coinImageUrl });

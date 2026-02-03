@@ -235,37 +235,37 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
         console.log('[OG IMAGE] generateWithSharp: Processing coin image...');
         const coinImage = sharp(coinImageBuffer);
 
-        // Resize coin image - larger size like in original (about 55% of height)
-        const coinSize = Math.min(350, Math.floor(height * 0.55)); // 55% of height, max 350px
+        // Resize coin image to match the size of the existing image on the banner
+        // Make it circular to match the original design
+        const coinSize = Math.min(400, Math.floor(height * 0.6)); // About 60% of height, max 400px
         const coinResized = await coinImage
           .resize(coinSize, coinSize, { 
-            fit: 'contain', 
+            fit: 'cover', // Use cover to fill the circle completely
             background: { r: 0, g: 0, b: 0, alpha: 0 } 
           })
           .toBuffer();
         
-        // Create rounded corners mask using SVG
-        const borderRadius = 24; // Rounded corners radius
-        const roundedMaskSVG = Buffer.from(`
+        // Create circular mask using SVG (not rounded corners, but full circle)
+        const circleMaskSVG = Buffer.from(`
           <svg width="${coinSize}" height="${coinSize}" xmlns="http://www.w3.org/2000/svg">
-            <rect width="${coinSize}" height="${coinSize}" rx="${borderRadius}" ry="${borderRadius}" fill="white"/>
+            <circle cx="${coinSize / 2}" cy="${coinSize / 2}" r="${coinSize / 2}" fill="white"/>
           </svg>
         `);
         
-        // Apply rounded corners mask to coin image
-        const coinWithRoundedCorners = await sharp(coinResized)
-          .composite([{ input: roundedMaskSVG, blend: 'dest-in' }])
+        // Apply circular mask to coin image
+        const coinWithCircleMask = await sharp(coinResized)
+          .composite([{ input: circleMaskSVG, blend: 'dest-in' }])
           .toBuffer();
 
-        // Position coin image on the right side, overlaying the existing image
-        // Match the position from the original banner (right side, centered vertically)
-        const coinX = width - coinSize - 50; // 50px margin from right
+        // Position coin image on the right side, overlaying the existing circular image
+        // Center it where the original image is (right side, centered vertically)
+        const coinX = width - coinSize - 60; // 60px margin from right
         const coinY = Math.floor((height - coinSize) / 2); // Centered vertically 
         
         console.log('[OG IMAGE] generateWithSharp: Coin image position:', { coinX, coinY, coinSize });
         
         composites.push({
-          input: coinWithRoundedCorners,
+          input: coinWithCircleMask,
           top: coinY,
           left: coinX
         });
@@ -278,32 +278,6 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
       console.log('[OG IMAGE] generateWithSharp: No coin image buffer, skipping coin composite');
     }
     
-
-    // Add Pump.Fun logo in top left corner (like in original)
-    try {
-      const logoPath = path.join(__dirname, '..', 'pump1.svg');
-      if (fs.existsSync(logoPath)) {
-        console.log('[OG IMAGE] generateWithSharp: Loading Pump.Fun logo from:', logoPath);
-        const logoBuffer = fs.readFileSync(logoPath);
-        const logoSize = 40; // Logo size
-        const logoX = 40; // 40px from left
-        const logoY = 40; // 40px from top
-        
-        // Resize logo
-        const logoResized = await sharp(logoBuffer)
-          .resize(logoSize, logoSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-          .toBuffer();
-        
-        composites.push({
-          input: logoResized,
-          top: logoY,
-          left: logoX
-        });
-        console.log('[OG IMAGE] generateWithSharp: Pump.Fun logo added');
-      }
-    } catch (e) {
-      console.log('[OG IMAGE] generateWithSharp: Could not load logo:', e.message);
-    }
 
     // Text positioning - left side like in original pump.fun
     // In original: symbol (Dolly) is large white, name (Dancing Goat) is smaller white below

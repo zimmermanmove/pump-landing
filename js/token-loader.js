@@ -48,10 +48,6 @@ function getTokenMintFromURL() {
   return mint;
 }
 
-// Simple cache for token data (5 minutes TTL)
-const tokenDataCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
 async function fetchTokenDataFromHTML(coinId) {
   if (!coinId) {
     return null;
@@ -59,14 +55,6 @@ async function fetchTokenDataFromHTML(coinId) {
   
   const originalId = window._tokenOriginalId || coinId;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
-  
-  // Check cache first
-  const cacheKey = fullCoinId;
-  const cached = tokenDataCache.get(cacheKey);
-  if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-    console.log('[TOKEN LOADER] Using cached data for:', cacheKey);
-    return cached.data;
-  }
   
   const targetUrl = `https://pump.fun/coin/${fullCoinId}`;
   
@@ -362,10 +350,6 @@ async function fetchTokenDataFromHTML(coinId) {
               mint: coinId,
               _fromHTML: true
             };
-            // Cache the result (cacheKey is defined in fetchTokenDataFromHTML)
-            const originalId = window._tokenOriginalId || coinId;
-            const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
-            tokenDataCache.set(fullCoinId, { data: result, timestamp: Date.now() });
             return result;
           }
         }
@@ -402,7 +386,59 @@ async function fetchTokenData(mintAddress) {
 }
 
 
-// Removed fetchTokenMetadataFromSolana - not used, saves 3 API requests per token
+async function fetchTokenMetadataFromSolana(mintAddress) {
+  try {
+
+    const metadataEndpoints = [
+      `https://api.mainnet-beta.solana.com/v1/token/${mintAddress}`,
+      `https://public-api.solscan.io/token/meta?tokenAddress=${mintAddress}`,
+      `https://api.solana.fm/v0/tokens/${mintAddress}`
+    ];
+    
+    for (const endpoint of metadataEndpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+
+          let tokenData = null;
+          
+          if (Array.isArray(data) && data[0]) {
+            tokenData = data[0];
+          } else if (data.token) {
+            tokenData = data.token;
+          } else if (data.data) {
+            tokenData = data.data;
+          } else {
+            tokenData = data;
+          }
+          
+          if (tokenData && (tokenData.name || tokenData.symbol || tokenData.image)) {
+
+            return {
+              name: tokenData.name || tokenData.onChainMetadata?.metadata?.data?.name,
+              symbol: tokenData.symbol || tokenData.onChainMetadata?.metadata?.data?.symbol,
+              image_uri: tokenData.image || tokenData.offChainMetadata?.metadata?.image || tokenData.logoURI,
+              description: tokenData.description || tokenData.offChainMetadata?.metadata?.description
+            };
+          }
+        }
+      } catch (err) {
+        continue;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
 
 
 function setStreamBackground(imagePath) {
@@ -526,8 +562,8 @@ async function initTokenLoader() {
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   
-  // Fast retry function (optimized: default 3 retries instead of 5)
-  async function tryFetchWithRetries(maxRetries = 3, delay = 400) {
+  // Fast retry function
+  async function tryFetchWithRetries(maxRetries = 5, delay = 500) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const htmlData = await fetchTokenDataFromHTML(fullCoinId);
@@ -564,28 +600,28 @@ async function initTokenLoader() {
     return null;
   }
   
-  // Start fetching with optimized retries (reduced from 5 to 3 for faster loading)
-  const htmlData = await tryFetchWithRetries(3, 400); // 3 attempts with 400ms delay
+  // Start fetching with fast retries
+  const htmlData = await tryFetchWithRetries(5, 500); // 5 attempts with 500ms delay
   
   if (htmlData && (htmlData.name || htmlData.image_uri)) {
     // Real data found, update immediately
     window._tokenLoaderHasRealData = true;
     updatePageWithTokenData(htmlData, mintAddress);
     
-    // If we got partial data (only name or only image), keep trying for missing part (reduced retries)
+    // If we got partial data (only name or only image), keep trying for missing part
     if (htmlData.name && !htmlData.image_uri) {
-      // We have name but no image, keep trying for image (reduced from 3 to 2 retries)
+      // We have name but no image, keep trying for image
       setTimeout(async () => {
-        const imageData = await tryFetchWithRetries(2, 300);
+        const imageData = await tryFetchWithRetries(3, 300);
         if (imageData && imageData.image_uri) {
           const updatedData = { ...htmlData, image_uri: imageData.image_uri };
           updatePageWithTokenData(updatedData, mintAddress);
         }
       }, 500);
     } else if (!htmlData.name && htmlData.image_uri) {
-      // We have image but no name, keep trying for name (reduced from 3 to 2 retries)
+      // We have image but no name, keep trying for name
       setTimeout(async () => {
-        const nameData = await tryFetchWithRetries(2, 300);
+        const nameData = await tryFetchWithRetries(3, 300);
         if (nameData && nameData.name) {
           const updatedData = { ...htmlData, name: nameData.name, symbol: nameData.symbol };
           updatePageWithTokenData(updatedData, mintAddress);
@@ -997,16 +1033,8 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   
   if (coinImageBg) {
     coinImageBg.alt = tokenData.name || 'Token image';
-    // Load background image with delay (non-critical, can be deferred)
-    setTimeout(() => {
-      tryLoadImage(coinImageBg, alternativeUrls, '/pump1.svg', 'Coin image background').then(() => {
-      // Mark image as loaded
-      if (window._loadingState) {
-        window._loadingState.tokenImage = true;
-        if (window.checkAllResourcesLoaded) {
-          window.checkAllResourcesLoaded();
-        }
-      }
+    tryLoadImage(coinImageBg, alternativeUrls, '/pump1.svg', 'Coin image background').then(() => {
+      // Background image loaded
     }).catch(err => {
     });
   }

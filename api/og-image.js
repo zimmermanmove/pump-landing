@@ -866,7 +866,6 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
   
   // Try to get OG image from pump.fun first (like original)
   // Format: https://pump.fun/coin/{tokenId}/opengraph-image-{hash}?{query}
-  // Optimized: Only try if we have tokenId and timeout is fast (1.5s instead of 2s)
   if (tokenId) {
     try {
       const fullCoinId = tokenId.endsWith('pump') ? tokenId : `${tokenId}pump`;
@@ -875,17 +874,14 @@ async function handleOGImageRequest(req, res, tokenId, coinName, symbol, coinIma
       
       console.log('[OG IMAGE] handleOGImageRequest: Trying to get OG image from pump.fun:', coinPageUrl);
       
-      const pageResponse = await Promise.race([
-        new Promise((resolve) => {
-          http.get(proxyUrl, { timeout: 1500 }, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => resolve(data));
-            res.on('error', () => resolve(null));
-          }).on('error', () => resolve(null));
-        }),
-        new Promise(resolve => setTimeout(() => resolve(null), 1500)) // Fast timeout
-      ]);
+      const pageResponse = await new Promise((resolve) => {
+        http.get(proxyUrl, { timeout: 2000 }, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => resolve(data));
+          res.on('error', () => resolve(null));
+        }).on('error', () => resolve(null));
+      });
       
       if (pageResponse) {
         // Try to extract opengraph-image URL from twitter:image meta tag (like in original)

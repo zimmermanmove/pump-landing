@@ -233,13 +233,41 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
     let coinImageBuffer = null;
     try {
       console.log('[OG IMAGE] generateWithSharp: Fetching coin image from:', coinImageUrl);
-      // Fast fetch with timeout
-      const fetchPromise = fetchImage(coinImageUrl);
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000)); // 2 second timeout
-      coinImageBuffer = await Promise.race([fetchPromise, timeoutPromise]);
-      if (coinImageBuffer) {
-        console.log('[OG IMAGE] generateWithSharp: Successfully fetched coin image, size:', coinImageBuffer.length);
-      } else {
+      
+      // Try to get higher quality image - replace variant=86x86 with larger variant or remove it
+      let highQualityUrl = coinImageUrl;
+      if (coinImageUrl.includes('variant=86x86')) {
+        // Try larger variant first (200x200 or 400x400)
+        highQualityUrl = coinImageUrl.replace('variant=86x86', 'variant=400x400');
+        console.log('[OG IMAGE] generateWithSharp: Trying high quality variant:', highQualityUrl);
+      } else if (coinImageUrl.includes('images.pump.fun/coin-image/') && !coinImageUrl.includes('variant=')) {
+        // If no variant, try to add larger variant
+        const baseUrl = coinImageUrl.split('?')[0];
+        highQualityUrl = `${baseUrl}?variant=400x400`;
+        console.log('[OG IMAGE] generateWithSharp: Trying high quality variant:', highQualityUrl);
+      }
+      
+      // Try high quality first, fallback to original URL
+      let fetchPromise = fetchImage(highQualityUrl);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000)); // 3 second timeout for larger image
+      
+      try {
+        coinImageBuffer = await Promise.race([fetchPromise, timeoutPromise]);
+        if (coinImageBuffer) {
+          console.log('[OG IMAGE] generateWithSharp: Successfully fetched high quality coin image, size:', coinImageBuffer.length);
+        }
+      } catch (e) {
+        console.log('[OG IMAGE] generateWithSharp: High quality fetch failed, trying original URL:', e.message);
+        // Fallback to original URL
+        fetchPromise = fetchImage(coinImageUrl);
+        const fallbackTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000));
+        coinImageBuffer = await Promise.race([fetchPromise, fallbackTimeout]);
+        if (coinImageBuffer) {
+          console.log('[OG IMAGE] generateWithSharp: Successfully fetched coin image (fallback), size:', coinImageBuffer.length);
+        }
+      }
+      
+      if (!coinImageBuffer) {
         console.log('[OG IMAGE] generateWithSharp: Coin image fetch returned null/empty');
       }
     } catch (e) {
@@ -261,12 +289,18 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
         const coinHeight = circleCoords.height;
         const cornerRadius = circleCoords.cornerRadius || 17;
         
+        // Get original image dimensions to check if we need to upscale
+        const coinMetadata = await coinImage.metadata();
+        console.log('[OG IMAGE] generateWithSharp: Original coin image size:', { width: coinMetadata.width, height: coinMetadata.height });
+        console.log('[OG IMAGE] generateWithSharp: Target size:', { width: coinWidth, height: coinHeight });
+        
         // Resize coin image to exactly match the size of the original image in the banner
         // Use maximum quality settings for best image quality
+        // If upscaling, use best algorithm; if downscaling, also use best algorithm
         const coinResized = await coinImage
           .resize(coinWidth, coinHeight, { 
             fit: 'cover', // Use cover to fill completely, cropping if needed
-            kernel: 'lanczos3', // Highest quality resampling algorithm
+            kernel: coinMetadata.width < coinWidth ? 'lanczos3' : 'lanczos3', // Always use lanczos3 for best quality
             background: { r: 0, g: 0, b: 0, alpha: 0 },
             withoutEnlargement: false, // Allow upscaling if needed
             fastShrinkOnLoad: false // Disable fast shrink for better quality

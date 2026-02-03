@@ -829,29 +829,30 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   const coinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   const alternativeUrls = [];
   
-  // Optimized: Use only 2 URLs max to avoid duplicate proxy requests
-  // Remove duplicates and use most likely to succeed URLs first
-  const uniqueUrls = new Set();
-  
+  // Multiple fallback URLs for better reliability
   if (tokenImageUrl && tokenImageUrl.includes('images.pump.fun')) {
-    uniqueUrls.add(tokenImageUrl);
-    uniqueUrls.add(`https://images.pump.fun/coin-image/${coinId}?variant=86x86`);
+    alternativeUrls.push(
+      tokenImageUrl,
+      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
+      `https://images.pump.fun/coin-image/${coinId}?variant=200x200`,
+      `https://images.pump.fun/coin-image/${coinId}`
+    );
   } else if (tokenImageUrl) {
-    uniqueUrls.add(tokenImageUrl);
-    uniqueUrls.add(`https://images.pump.fun/coin-image/${coinId}?variant=86x86`);
+    alternativeUrls.push(tokenImageUrl);
+    // Add fallbacks even if we have a custom URL
+    alternativeUrls.push(
+      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
+      `https://images.pump.fun/coin-image/${coinId}`
+    );
   } else {
-    // Only 2 fallback URLs to minimize proxy requests
-    uniqueUrls.add(`https://images.pump.fun/coin-image/${coinId}?variant=86x86`);
-    uniqueUrls.add(`https://images.pump.fun/coin-image/${coinId}`);
+    // Multiple fallback URLs
+    alternativeUrls.push(
+      `https://images.pump.fun/coin-image/${coinId}?variant=86x86`,
+      `https://images.pump.fun/coin-image/${coinId}?variant=200x200`,
+      `https://images.pump.fun/coin-image/${coinId}`
+    );
   }
   
-  const alternativeUrls = Array.from(uniqueUrls);
-  
-  
-  // Cache for proxy requests to avoid duplicate requests
-  if (!window._proxyCache) {
-    window._proxyCache = new Map();
-  }
   
   async function tryLoadImage(imgElement, urls, fallbackUrl, elementName) {
     if (!imgElement) {
@@ -864,28 +865,12 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     
     // Load all URLs in parallel for faster loading
     async function loadViaProxy(imageUrl) {
-      // Check cache first to avoid duplicate requests
-      if (window._proxyCache.has(imageUrl)) {
-        const cached = window._proxyCache.get(imageUrl);
-        if (cached.status === 'success') {
-          return cached.blobUrl;
-        } else if (cached.status === 'loading') {
-          // Wait for ongoing request
-          return await cached.promise;
-        }
-        // Cached failure, skip
-        throw new Error('Cached failure');
-      }
-      
-      // Mark as loading and create promise
-      const loadingPromise = (async () => {
-        try {
-          const proxyUrl = `${window.location.origin}/proxy?url=${encodeURIComponent(imageUrl)}`;
-          
-          const response = await fetch(proxyUrl);
-          
-          if (response.ok) {
-
+      try {
+        const proxyUrl = `${window.location.origin}/proxy?url=${encodeURIComponent(imageUrl)}`;
+        
+        const response = await fetch(proxyUrl);
+        
+        if (response.ok) {
           const contentType = response.headers.get('content-type') || '';
           
           // Check content type first without cloning
@@ -910,7 +895,6 @@ function updatePageWithTokenData(tokenData, mintAddress) {
             throw new Error('Empty blob received');
           }
           
-
           if (blob.type.includes('text/html')) {
             throw new Error('Proxy returned HTML instead of image');
           }
@@ -936,47 +920,13 @@ function updatePageWithTokenData(tokenData, mintAddress) {
             });
           }
           
-            // Cache successful result
-            window._proxyCache.set(imageUrl, {
-              status: 'success',
-              blobUrl: blobUrl,
-              timestamp: Date.now()
-            });
-            
-            // Clean up old cache entries (keep last 10)
-            if (window._proxyCache.size > 10) {
-              const entries = Array.from(window._proxyCache.entries());
-              entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
-              entries.slice(0, entries.length - 10).forEach(([url]) => {
-                window._proxyCache.delete(url);
-              });
-            }
-            
-            return blobUrl;
-          } else {
-            // Cache failure
-            window._proxyCache.set(imageUrl, {
-              status: 'failed',
-              timestamp: Date.now()
-            });
-            throw new Error(`Proxy request failed: ${response.status}`);
-          }
-        } catch (err) {
-          // Cache failure
-          window._proxyCache.set(imageUrl, {
-            status: 'failed',
-            timestamp: Date.now()
-          });
-          throw err;
+          return blobUrl;
+        } else {
+          throw new Error(`Proxy request failed: ${response.status}`);
         }
-      })();
-      
-      window._proxyCache.set(imageUrl, {
-        status: 'loading',
-        promise: loadingPromise
-      });
-      
-      return await loadingPromise;
+      } catch (err) {
+        throw err;
+      }
     }
     
     // Load all URLs in parallel for faster loading

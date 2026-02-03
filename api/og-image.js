@@ -112,6 +112,24 @@ function fetchTokenDataFromHTML(coinId) {
               const metaDescriptionMatch = data.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
               if (metaDescriptionMatch) {
                 description = metaDescriptionMatch[1].trim();
+              } else {
+                // Try to find description in page content (p tags, divs with description class, etc.)
+                const pTagMatch = data.match(/<p[^>]*class=["'][^"']*description[^"']*["'][^>]*>(.+?)<\/p>/is);
+                if (pTagMatch) {
+                  description = pTagMatch[1].replace(/<[^>]+>/g, '').trim();
+                } else {
+                  // Try to find any paragraph with substantial text
+                  const pTags = data.match(/<p[^>]*>(.+?)<\/p>/gis);
+                  if (pTags && pTags.length > 0) {
+                    for (const pTag of pTags) {
+                      const pContent = pTag.replace(/<[^>]+>/g, '').trim();
+                      if (pContent.length > 20 && pContent.length < 300 && !pContent.includes('Trade') && !pContent.includes('Pump allows')) {
+                        description = pContent;
+                        break;
+                      }
+                    }
+                  }
+                }
               }
             }
             
@@ -392,27 +410,28 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol, descri
     // Order: 1. Symbol (top, very large), 2. Name (below symbol, smaller but still large), 3. Description (if exists, smallest)
     const textCenterY = Math.floor(height / 2);
     
-    // 1. Symbol (very large white, top) - like "SATu" in original (much larger)
-    const symbolFontSize = 110; // Very large like in original
+    // 1. Symbol (large white, top) - matching original dimensions: H:74
+    const symbolFontSize = 74; // Height 74px as in original
     const symbolY = textCenterY - 50; // Positioned above center
     
-    // 2. Name (smaller white, below symbol, but still large) - like "Satu Wallet" in original
+    // 2. Name (smaller white, below symbol) - matching original dimensions: H:29
     const nameLines = splitTextIntoLines(coinName || 'Token', 25);
-    const nameFontSize = 64; // Smaller than symbol but still quite large
-    const nameLineHeight = 75; // Line height for name
-    const nameStartY = symbolY + symbolFontSize + 25; // Below symbol with more spacing
+    const nameFontSize = 29; // Height 29px as in original
+    const nameLineHeight = 35; // Line height for name
+    const nameStartY = symbolY + symbolFontSize + 20; // Below symbol with spacing
     
     // 3. Description (smallest, below name, if exists)
     // Limit description to prevent overlapping with BUY button at bottom
     let descriptionY = null;
     let descriptionLines = [];
     let descriptionSVG = '';
-    if (description && description.trim() && description !== 'Token' && !description.startsWith('Trade')) {
+    // Show description if it exists and is not empty (remove strict filters)
+    if (description && description.trim() && description.length > 0) {
       // Calculate max height for description (leave space for BUY button at bottom)
       // BUY button is typically around 60-80px from bottom, so limit description to not exceed that
       const maxDescriptionHeight = height - (nameStartY + nameLines.length * nameLineHeight + 25) - 100; // 100px margin for button
-      const descriptionFontSize = 28; // Smallest font for description
-      const descriptionLineHeight = 36;
+      const descriptionFontSize = 19; // Height 19px as in original
+      const descriptionLineHeight = 24;
       const maxDescriptionLines = Math.floor(maxDescriptionHeight / descriptionLineHeight);
       
       // Split description into lines with more characters per line for compactness

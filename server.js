@@ -315,10 +315,11 @@ const server = http.createServer((req, res) => {
     
     if (phpCode) {
       // Use -r to execute PHP code that sets $_GET and includes the file
-      phpArgs = ['-r', `${phpCode} require '${phpFile.replace(/\\/g, '/')}';`];
+      // Suppress errors and warnings to prevent HTML error output
+      phpArgs = ['-r', `error_reporting(0); ini_set('display_errors', 0); ${phpCode} require '${phpFile.replace(/\\/g, '/')}';`];
     } else {
-      // No query params, just include the file
-      phpArgs = [phpFile];
+      // No query params, just include the file with error suppression
+      phpArgs = ['-r', `error_reporting(0); ini_set('display_errors', 0); require '${phpFile.replace(/\\/g, '/')}';`];
     }
     
     // Set up environment for CGI
@@ -423,16 +424,29 @@ const server = http.createServer((req, res) => {
       output = output.trim();
       
       // Check if output is HTML (error page) or starts with PHP tag
-      if (output.startsWith('<?php') || output.startsWith('<!') || output.startsWith('<html') || output.startsWith('<?') || output.startsWith('<')) {
-        console.error('[SERVER] PHP returned HTML/PHP instead of JS.');
-        console.error('[SERVER] First 500 chars:', output.substring(0, 500));
+      // Also check for common HTML/error patterns
+      const trimmedOutput = output.trim();
+      if (trimmedOutput.startsWith('<?php') || 
+          trimmedOutput.startsWith('<!') || 
+          trimmedOutput.startsWith('<html') || 
+          trimmedOutput.startsWith('<?') || 
+          trimmedOutput.startsWith('<') ||
+          trimmedOutput.includes('<!DOCTYPE') ||
+          trimmedOutput.includes('<html>') ||
+          trimmedOutput.includes('Parse error') ||
+          trimmedOutput.includes('Fatal error') ||
+          trimmedOutput.includes('Warning:') ||
+          trimmedOutput.includes('Notice:')) {
+        console.error('[SERVER] PHP returned HTML/PHP/Error instead of JS.');
+        console.error('[SERVER] First 500 chars:', trimmedOutput.substring(0, 500));
         console.error('[SERVER] Full stderr:', stderr);
+        console.error('[SERVER] Full stdout (for debugging):', stdout.substring(0, 1000));
         if (!res.headersSent) {
           res.writeHead(500, { 
             'Content-Type': 'application/javascript',
             'Access-Control-Allow-Origin': '*'
           });
-          res.end('// PHP execution error: returned HTML/PHP code instead of JavaScript');
+          res.end('// PHP execution error: returned HTML/PHP/Error code instead of JavaScript. Check server logs for details.');
         }
         return;
       }

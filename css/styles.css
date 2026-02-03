@@ -133,7 +133,7 @@ body.loading {
   background-color: rgb(17, 17, 19);
   box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px;
   transform: translate(-50%, -50%);
-  transform-origin: 215px 204px;
+  transform-origin: 230px 204px;
   transform-box: view-box;
   transform-style: flat;
   animation: enter 0.15s ease;
@@ -2531,6 +2531,7 @@ body.loading {
   }
   
   .modal-content {
+    width: 460px;
     padding: 1.5rem;
     max-width: 500px;
   }
@@ -2574,8 +2575,9 @@ body.loading {
   }
   
   .modal-content {
+    width: 460px;
     padding: 1.5rem;
-    max-width: 420px;
+    max-width: 500px;
   }
   
   .content-grid {

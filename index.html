@@ -227,23 +227,25 @@
     <div class="how-it-works-modal" id="howItWorksModal">
       <div class="modal-backdrop"></div>
       <div class="modal-content">
-        <h2>How it works</h2>
-        <div style="display: flex; flex-direction: column; gap: 1.5rem; font-size: 13px; color: #d1d5db; line-height: 1.625; font-weight: 500;">
-          <p>Pump allows <span class="text-blue">anyone</span> to create coins. all coins created on Pump are <span class="text-green">fair-launch</span>, meaning everyone has equal access to buy and sell when the coin is first created.</p>
-          <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-            <p class="step"><span>Step 1:</span> pick a coin that you like</p>
-            <p class="step"><span>Step 2:</span> buy the coin on the bonding curve</p>
-            <p class="step"><span>Step 3:</span> sell at any time to lock in your profits or losses</p>
-          </div>
-          <p class="text-small">By clicking this button, you agree to the terms and conditions and certify that you are over 18 years old</p>
+        <div class="modal-header">
+          <h2>How it works</h2>
         </div>
-        <button class="modal-button aBVeeVna h3qErTJo" id="connectWalletBtn">I'm ready to pump</button>
+        <div class="modal-description">
+          Pump allows <span class="text-blue-300">anyone</span> to create coins. all coins created on Pump are <span class="text-green-300">fair-launch</span>, meaning everyone has equal access to buy and sell when the coin is first created.
+        </div>
+        <div class="modal-steps">
+          <div class="modal-step"><strong>Step 1:</strong> pick a coin that you like</div>
+          <div class="modal-step"><strong>Step 2:</strong> buy the coin on the bonding curve</div>
+          <div class="modal-step"><strong>Step 3:</strong> sell at any time to lock in your profits or losses</div>
+        </div>
+        <div class="modal-disclaimer">
+          By clicking this button, you agree to the terms and conditions and certify that you are over 18 years old
+        </div>
+        <button class="modal-button" id="connectWalletBtn">
+          <span>I'm ready to pump</span>
+        </button>
         <div class="modal-links">
-          <a href="#">Privacy policy</a>
-          <span>|</span>
-          <a href="#">Terms of service</a>
-          <span>|</span>
-          <a href="#">Fees</a>
+          <a href="/docs/privacy-policy">Privacy policy</a> | <a href="/docs/terms-and-conditions">Terms of service</a> | <a href="/docs/fees">Fees</a>
         </div>
       </div>
     </div>

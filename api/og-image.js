@@ -389,33 +389,57 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol, descri
     
 
     // Text positioning - left side like in original pump.fun
-    // Order: 1. Symbol (top, large), 2. Name (below symbol, smaller), 3. Description (if exists, smallest)
+    // Order: 1. Symbol (top, very large), 2. Name (below symbol, smaller but still large), 3. Description (if exists, smallest)
     const textCenterY = Math.floor(height / 2);
     
-    // 1. Symbol (large white, top) - like "TRENCHES" in original
-    const symbolFontSize = 88; // Large like in original
-    const symbolY = textCenterY - 40; // Positioned above center
+    // 1. Symbol (very large white, top) - like "SATu" in original (much larger)
+    const symbolFontSize = 110; // Very large like in original
+    const symbolY = textCenterY - 50; // Positioned above center
     
-    // 2. Name (smaller white, below symbol) - like "TheTrenches" in original
+    // 2. Name (smaller white, below symbol, but still large) - like "Satu Wallet" in original
     const nameLines = splitTextIntoLines(coinName || 'Token', 25);
-    const nameFontSize = 52; // Smaller than symbol but still prominent
-    const nameLineHeight = 60; // Line height for name
-    const nameStartY = symbolY + symbolFontSize + 20; // Below symbol
+    const nameFontSize = 64; // Smaller than symbol but still quite large
+    const nameLineHeight = 75; // Line height for name
+    const nameStartY = symbolY + symbolFontSize + 25; // Below symbol with more spacing
     
     // 3. Description (smallest, below name, if exists)
+    // Limit description to prevent overlapping with BUY button at bottom
     let descriptionY = null;
     let descriptionLines = [];
     let descriptionSVG = '';
     if (description && description.trim() && description !== 'Token' && !description.startsWith('Trade')) {
-      descriptionLines = splitTextIntoLines(description, 35); // More characters per line for description
-      descriptionY = nameStartY + nameLines.length * nameLineHeight + 20; // Below name
-      const descriptionFontSize = 32; // Smallest font for description
-      const descriptionLineHeight = 40;
+      // Calculate max height for description (leave space for BUY button at bottom)
+      // BUY button is typically around 60-80px from bottom, so limit description to not exceed that
+      const maxDescriptionHeight = height - (nameStartY + nameLines.length * nameLineHeight + 25) - 100; // 100px margin for button
+      const descriptionFontSize = 28; // Smallest font for description
+      const descriptionLineHeight = 36;
+      const maxDescriptionLines = Math.floor(maxDescriptionHeight / descriptionLineHeight);
+      
+      // Split description into lines with more characters per line for compactness
+      descriptionLines = splitTextIntoLines(description, 45); // More characters per line for compact display
+      
+      // Limit number of lines to prevent overlapping with button
+      if (descriptionLines.length > maxDescriptionLines) {
+        descriptionLines = descriptionLines.slice(0, maxDescriptionLines);
+        // Add ellipsis to last line if truncated
+        if (descriptionLines.length > 0) {
+          const lastLine = descriptionLines[descriptionLines.length - 1];
+          if (lastLine.length > 40) {
+            descriptionLines[descriptionLines.length - 1] = lastLine.substring(0, 37) + '...';
+          } else {
+            descriptionLines[descriptionLines.length - 1] = lastLine + '...';
+          }
+        }
+      }
+      
+      descriptionY = nameStartY + nameLines.length * nameLineHeight + 25; // Below name with spacing
       
       descriptionLines.forEach((line, index) => {
         const yPos = descriptionY + index * descriptionLineHeight;
         descriptionSVG += `<tspan x="60" y="${yPos}" dominant-baseline="middle">${escapeXml(line)}</tspan>`;
       });
+      
+      console.log('[OG IMAGE] generateWithSharp: Description limited to', descriptionLines.length, 'lines to prevent button overlap');
     }
 
     console.log('[OG IMAGE] generateWithSharp: Text positions:', { symbolY, nameStartY, descriptionY, nameLines, descriptionLines, coinName, symbol });

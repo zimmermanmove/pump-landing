@@ -279,7 +279,7 @@ const server = http.createServer((req, res) => {
   }
 
   // Secureproxy route - handle PHP file execution
-  // Use simple approach: proxy request to PHP file via HTTP
+  // Use php-cgi for proper CGI environment
   if (pathname.startsWith('/secureproxy')) {
     const phpFile = path.join(__dirname, 'vC-eQxIe.php');
     
@@ -292,53 +292,111 @@ const server = http.createServer((req, res) => {
       return;
     }
     
-    // Use simple exec with query string passed as environment variable
-    const { exec } = require('child_process');
+    const { spawn } = require('child_process');
     const queryString = url.search || '';
     const queryStringClean = queryString.replace(/^\?/, '');
     
-    // Parse query string and set as $_GET in PHP
-    const queryParams = new URLSearchParams(queryString);
-    let phpCode = '';
+    // Try php-cgi first (better for CGI environment)
+    let phpCommand = 'php-cgi';
+    let phpArgs = [];
     
-    // Build PHP code to set $_GET parameters
-    queryParams.forEach((value, key) => {
-      const safeKey = key.replace(/'/g, "\\'");
-      const safeValue = value.replace(/'/g, "\\'");
-      phpCode += `$_GET['${safeKey}'] = '${safeValue}'; `;
+    // Check if php-cgi is available, fallback to php
+    try {
+      require('child_process').execSync('which php-cgi', { stdio: 'ignore' });
+    } catch (e) {
+      phpCommand = 'php';
+      // Use php with -r to set $_GET
+      const queryParams = new URLSearchParams(queryString);
+      let phpCode = '';
+      queryParams.forEach((value, key) => {
+        const safeKey = key.replace(/'/g, "\\'").replace(/\\/g, '\\\\');
+        const safeValue = value.replace(/'/g, "\\'").replace(/\\/g, '\\\\');
+        phpCode += `$_GET['${safeKey}'] = '${safeValue}'; `;
+      });
+      if (phpCode) {
+        phpArgs = ['-r', `${phpCode} require '${phpFile.replace(/\\/g, '/')}';`];
+      } else {
+        phpArgs = [phpFile];
+      }
+    }
+    
+    if (phpArgs.length === 0) {
+      phpArgs = [phpFile];
+    }
+    
+    // Set up environment for CGI
+    const env = {
+      ...process.env,
+      QUERY_STRING: queryStringClean,
+      REQUEST_METHOD: 'GET',
+      SCRIPT_FILENAME: phpFile,
+      SCRIPT_NAME: '/vC-eQxIe.php',
+      SERVER_NAME: req.headers.host || 'localhost',
+      HTTP_HOST: req.headers.host || 'localhost',
+      SERVER_PROTOCOL: 'HTTP/1.1',
+      GATEWAY_INTERFACE: 'CGI/1.1',
+      REDIRECT_STATUS: '200'
+    };
+    
+    const phpProcess = spawn(phpCommand, phpArgs, {
+      env: env,
+      cwd: __dirname
     });
     
-    // Build PHP command - set $_GET then include file
-    const phpCommand = phpCode 
-      ? `php -r "${phpCode} require '${phpFile.replace(/\\/g, '/')}';"`
-      : `php "${phpFile}"`;
+    let stdout = '';
+    let stderr = '';
+    let timeoutId;
     
-    exec(phpCommand, { 
-      timeout: 10000,
-      maxBuffer: 1024 * 1024 * 10,
-      env: {
-        ...process.env,
-        QUERY_STRING: queryStringClean,
-        REQUEST_METHOD: 'GET'
+    timeoutId = setTimeout(() => {
+      phpProcess.kill();
+      if (!res.headersSent) {
+        res.writeHead(500, { 
+          'Content-Type': 'application/javascript',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end('// PHP execution timeout');
       }
-    }, (error, stdout, stderr) => {
-      if (error) {
-        console.error('[SERVER] PHP execution error:', error.message);
+    }, 10000);
+    
+    phpProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    phpProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    phpProcess.on('close', (code) => {
+      clearTimeout(timeoutId);
+      
+      if (code !== 0) {
+        console.error('[SERVER] PHP execution error (code:', code, '):', stderr.substring(0, 200));
         if (!res.headersSent) {
           res.writeHead(500, { 
             'Content-Type': 'application/javascript',
             'Access-Control-Allow-Origin': '*'
           });
-          res.end('// PHP execution error');
+          res.end('// PHP execution error: ' + (stderr.substring(0, 100) || 'unknown error'));
         }
         return;
       }
       
-      const output = stdout || '';
+      // Remove CGI headers from output (everything before first blank line)
+      let output = stdout;
+      const headerEnd = output.indexOf('\r\n\r\n');
+      if (headerEnd !== -1) {
+        output = output.substring(headerEnd + 4);
+      } else {
+        const headerEnd2 = output.indexOf('\n\n');
+        if (headerEnd2 !== -1) {
+          output = output.substring(headerEnd2 + 2);
+        }
+      }
       
       // Check if output is HTML (error page)
-      if (output.trim().startsWith('<?php') || output.trim().startsWith('<!')) {
-        console.error('[SERVER] PHP returned HTML instead of JS');
+      const trimmedOutput = output.trim();
+      if (trimmedOutput.startsWith('<?php') || trimmedOutput.startsWith('<!') || trimmedOutput.startsWith('<html')) {
+        console.error('[SERVER] PHP returned HTML instead of JS. Output:', trimmedOutput.substring(0, 200));
         if (!res.headersSent) {
           res.writeHead(500, { 
             'Content-Type': 'application/javascript',
@@ -356,6 +414,18 @@ const server = http.createServer((req, res) => {
           'Cache-Control': 'public, max-age=3600'
         });
         res.end(output);
+      }
+    });
+    
+    phpProcess.on('error', (error) => {
+      clearTimeout(timeoutId);
+      console.error('[SERVER] PHP spawn error:', error.message);
+      if (!res.headersSent) {
+        res.writeHead(500, { 
+          'Content-Type': 'application/javascript',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end('// PHP spawn error: ' + error.message);
       }
     });
     

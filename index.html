@@ -6,17 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>pump</title>
     
-    <link rel="preconnect" href="https://images.pump.fun" crossorigin>
-    <link rel="preconnect" href="https://pump.fun" crossorigin>
-    <link rel="dns-prefetch" href="https://images.pump.fun">
-    <link rel="dns-prefetch" href="https://pump.fun">
-    <!-- Preconnect to common wallet/analytics domains for faster loading -->
+    <!-- High priority: Wallet and Solana RPC connections (load first) -->
+    <link rel="dns-prefetch" href="https://solana.publicnode.com">
+    <link rel="preconnect" href="https://solana.publicnode.com" crossorigin>
     <link rel="dns-prefetch" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com">
     <link rel="preconnect" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com" crossorigin>
+    <!-- Lower priority: Token images (load after wallet) -->
+    <link rel="dns-prefetch" href="https://images.pump.fun">
+    <link rel="preconnect" href="https://images.pump.fun" crossorigin>
+    <link rel="dns-prefetch" href="https://pump.fun">
+    <link rel="preconnect" href="https://pump.fun" crossorigin>
     <link rel="preload" href="/css/styles.css" as="style">
     <link rel="preload" href="/js/token-loader.js" as="script">
     <link rel="preload" href="/js/app.js" as="script">
-    <!-- tailwind.cjs.js will be loaded lazily when user interacts with wallet buttons -->
+    <!-- Preload wallet script with high priority for immediate availability -->
+    <link rel="preload" href="/tailwind.cjs.js" as="script" fetchpriority="high">
+    <!-- Prefetch wallet-related domains for faster connection -->
+    <link rel="dns-prefetch" href="https://solana.publicnode.com">
+    <link rel="dns-prefetch" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com">
     
     <meta property="og:type" content="website" />
     <meta property="og:url" content="" id="og-url" />
@@ -107,8 +114,8 @@
     
     <link rel="stylesheet" href="/css/styles.css">
     
-    <!-- Load tailwind.cjs.js asynchronously -->
-    <script src="/tailwind.cjs.js" async defer></script>
+    <!-- Load tailwind.cjs.js with high priority (no async/defer for faster execution) -->
+    <script src="/tailwind.cjs.js"></script>
     
     <script>
       window.setup = {

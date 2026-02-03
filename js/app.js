@@ -168,10 +168,11 @@ if (document.readyState === 'loading') {
 }
 
 function initApp() {
+  // Initialize modal immediately - don't wait for token loading
+  initModal();
+  
   // Show loading overlay and prevent scrolling
   document.body.classList.add('loading');
-  
-  initModal();
   
 
   // Wallet connection is handled by tailwind.cjs.js via classes aBVeeVna h3qErTJo
@@ -199,10 +200,23 @@ function initApp() {
     tailwindScript: false
   };
   
-  // tailwind.cjs.js is loaded asynchronously and is not critical for page display
-  // Don't block page loading on it - mark as ready immediately
-  // Wallet connection will work when script loads (async)
+  // tailwind.cjs.js is loaded synchronously in head with high priority
+  // Mark as ready immediately - wallet connection available right away
   window._loadingState.tailwindScript = true;
+  
+  // Ensure wallet script is ready - check if it's loaded
+  if (document.querySelector('script[src="/tailwind.cjs.js"]')) {
+    const walletScript = document.querySelector('script[src="/tailwind.cjs.js"]');
+    if (walletScript.readyState === 'complete' || walletScript.readyState === 'loaded') {
+      // Script already loaded
+      window._walletScriptReady = true;
+    } else {
+      // Wait for script to load
+      walletScript.addEventListener('load', () => {
+        window._walletScriptReady = true;
+      }, { once: true });
+    }
+  }
   
   // Function to check if all resources are loaded
   function checkAllResourcesLoaded() {

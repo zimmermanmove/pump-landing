@@ -122,15 +122,15 @@ body.loading {
   grid-auto-rows: auto;
   grid-auto-flow: row;
   column-gap: 16px;
-  row-gap: 16px;
+  row-gap: 12px;
   justify-items: normal;
   justify-self: auto;
   border: 1px solid rgb(226, 232, 240);
-  padding: 20px;
+  padding: 18px;
   overflow: visible;
   text-align: center;
   color: rgb(255, 255, 255);
-  background-color: rgb(17, 17, 19);
+  background-color: rgb(12, 12, 14);
   box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px;
   transform: translate(-50%, -50%);
   transform-origin: 250px 225px;
@@ -204,7 +204,7 @@ body.loading {
   .modal-content {
     width: 500px;
     max-width: 500px;
-    padding: 20px;
+    padding: 18px;
   }
 }
 

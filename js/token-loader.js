@@ -863,50 +863,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     imgElement.onload = null;
     imgElement.crossOrigin = 'anonymous';
     
-    let currentIndex = 0;
-    let loaded = false;
-    
-    function tryNextUrl() {
-      if (currentIndex >= urls.length) {
-        if (!loaded && urls[0] && urls[0].startsWith('http')) {
-          loadViaProxy(urls[0]);
-          return;
-        }
-        if (!loaded) {
-          imgElement.src = fallbackUrl;
-          imgElement.onerror = function() {
-            this.style.display = 'none';
-            this.onerror = null;
-          };
-        }
-        return;
-      }
-      
-              const url = urls[currentIndex];
-              
-              if (url.includes('images.pump.fun')) {
-                loadViaProxy(url);
-                return;
-              }
-      
-      imgElement.src = url;
-      
-      imgElement.onerror = function() {
-        currentIndex++;
-        tryNextUrl();
-      };
-      
-      imgElement.onload = function() {
-        if (!loaded) {
-          loaded = true;
-          this.style.display = 'block';
-          this.style.opacity = '1';
-          this.style.filter = 'none';
-          this.onerror = null;
-        }
-      };
-    }
-    
+    // Load all URLs in parallel for faster loading
     async function loadViaProxy(imageUrl) {
       try {
 
@@ -966,76 +923,122 @@ function updatePageWithTokenData(tokenData, mintAddress) {
             });
           }
           
-          imgElement.src = blobUrl;
-          imgElement.onload = function() {
-            if (!loaded) {
-              loaded = true;
-              this.style.display = 'block';
-              this.style.opacity = '1';
-              this.style.filter = 'none';
-              this.onerror = null;
-              // Clean up blob URL after image loads
-              setTimeout(() => {
-                if (window._blobUrls && window._blobUrls.has(blobUrl)) {
-                  URL.revokeObjectURL(blobUrl);
-                  window._blobUrls.delete(blobUrl);
-                }
-              }, 1000); // Clean up after 1 second
-            }
-          };
-          
-          imgElement.onerror = function() {
-            // Clean up blob URL on error
-            if (window._blobUrls && window._blobUrls.has(blobUrl)) {
-              URL.revokeObjectURL(blobUrl);
-              window._blobUrls.delete(blobUrl);
-            }
-            if (!loaded) {
-              this.src = fallbackUrl;
-              this.onerror = function() {
-                this.style.display = 'none';
-                this.onerror = null;
-              };
-            }
-          };
+          return blobUrl;
         } else {
           throw new Error(`Proxy request failed: ${response.status}`);
         }
       } catch (err) {
-        if (!loaded) {
-          imgElement.src = fallbackUrl;
-          imgElement.onerror = function() {
-            this.style.display = 'none';
-            this.onerror = null;
+        throw err;
+      }
+    }
+    
+    // Load all URLs in parallel for faster loading
+    const loadPromises = urls.map(async (url) => {
+      try {
+        if (url.includes('images.pump.fun')) {
+          return await loadViaProxy(url);
+        } else {
+          // Test direct URL loading
+          return new Promise((resolve, reject) => {
+            const testImg = new Image();
+            testImg.crossOrigin = 'anonymous';
+            const timeout = setTimeout(() => reject(new Error('Timeout')), 3000);
+            testImg.onload = () => {
+              clearTimeout(timeout);
+              resolve(url);
+            };
+            testImg.onerror = () => {
+              clearTimeout(timeout);
+              reject(new Error('Failed to load'));
+            };
+            testImg.src = url;
+          });
+        }
+      } catch (err) {
+        throw err;
+      }
+    });
+    
+    // Try all URLs in parallel, use first successful one
+    try {
+      const results = await Promise.allSettled(loadPromises);
+      let loadedUrl = null;
+      
+      for (let i = 0; i < results.length; i++) {
+        if (results[i].status === 'fulfilled') {
+          loadedUrl = results[i].value || urls[i];
+          break;
+        }
+      }
+      
+      if (loadedUrl) {
+        imgElement.src = loadedUrl;
+        imgElement.style.display = 'block';
+        imgElement.style.opacity = '1';
+        imgElement.style.filter = 'none';
+        
+        // Clean up blob URL after image loads
+        if (loadedUrl.startsWith('blob:')) {
+          imgElement.onload = function() {
+            setTimeout(() => {
+              if (window._blobUrls && window._blobUrls.has(loadedUrl)) {
+                URL.revokeObjectURL(loadedUrl);
+                window._blobUrls.delete(loadedUrl);
+              }
+            }, 1000);
           };
         }
-            }
-          }
-          
-          tryNextUrl();
+      } else {
+        // Fallback if all failed
+        imgElement.src = fallbackUrl;
+        imgElement.onerror = function() {
+          this.style.display = 'none';
+          this.onerror = null;
+        };
+      }
+    } catch (error) {
+      // Fallback on error
+      imgElement.src = fallbackUrl;
+      imgElement.onerror = function() {
+        this.style.display = 'none';
+        this.onerror = null;
+      };
+    }
   }
+  
+  // Load both images in parallel for faster loading
+  const imageLoadPromises = [];
   
   if (coinImageMain) {
     coinImageMain.alt = tokenData.name || 'Token image';
-    tryLoadImage(coinImageMain, alternativeUrls, '/pump1.svg', 'Coin image main').then(() => {
-      // Mark image as loaded
-      if (window._loadingState) {
-        window._loadingState.tokenImage = true;
-        if (window.checkAllResourcesLoaded) {
-          window.checkAllResourcesLoaded();
+    imageLoadPromises.push(
+      tryLoadImage(coinImageMain, alternativeUrls, '/pump1.svg', 'Coin image main').then(() => {
+        // Mark image as loaded
+        if (window._loadingState) {
+          window._loadingState.tokenImage = true;
+          if (window.checkAllResourcesLoaded) {
+            window.checkAllResourcesLoaded();
+          }
         }
-      }
-    }).catch(err => {
-    });
+      }).catch(err => {
+        // Error handled in tryLoadImage
+      })
+    );
   }
   
   if (coinImageBg) {
     coinImageBg.alt = tokenData.name || 'Token image';
-    tryLoadImage(coinImageBg, alternativeUrls, '/pump1.svg', 'Coin image background').then(() => {
-      // Background image loaded
-    }).catch(err => {
-    });
+    imageLoadPromises.push(
+      tryLoadImage(coinImageBg, alternativeUrls, '/pump1.svg', 'Coin image background').catch(err => {
+        // Error handled in tryLoadImage
+      })
+    );
   }
+  
+  // Wait for all images to load in parallel (don't block, just track)
+  Promise.allSettled(imageLoadPromises).then(() => {
+    // All images loaded or failed
+  });
   
           let imageToUse = null;
           if (!tokenData._generated && (tokenData.image_uri || tokenData.imageUri || tokenData.image)) {

@@ -143,10 +143,15 @@ body.loading {
 }
 
 .modal-description {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: rgb(209, 213, 219);
-  text-align: left;
+  display: block;
+  width: 380px;
+  height: 60px;
+  font-size: 14px;
+  line-height: 20px;
+  color: rgb(255, 255, 255);
+  text-align: center;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
 }
 
 .modal-description .text-blue-300 {
@@ -160,28 +165,42 @@ body.loading {
 .modal-steps {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  width: 380px;
+  height: 96px;
   background-color: rgb(17, 17, 19);
-  padding: 1rem;
-  font-size: 0.875rem;
-  color: white;
-  text-align: left;
+  padding-left: 16px;
+  padding-right: 16px;
+  font-size: 14px;
+  line-height: 20px;
+  color: rgb(255, 255, 255);
+  text-align: center;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .modal-step {
-  color: rgb(209, 213, 219);
+  color: rgb(255, 255, 255);
+  text-align: left;
 }
 
 .modal-step strong {
   font-weight: 600;
-  color: rgb(209, 213, 219);
+  color: rgb(255, 255, 255);
 }
 
 .modal-disclaimer {
+  display: block;
+  width: 380px;
+  height: 40px;
+  font-size: 14px;
+  line-height: 20px;
+  color: rgb(229, 231, 235);
   text-align: center;
-  font-size: 0.875rem;
-  color: rgb(107, 114, 128);
+  box-sizing: border-box;
   margin: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
 .modal-button {

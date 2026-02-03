@@ -241,17 +241,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize token loader - wait for TokenLoader to be available
   function initTokenLoaderWhenReady() {
     if (window.TokenLoader && window.TokenLoader.init) {
-      try {
-        window.TokenLoader.init();
-      } catch (error) {
-        console.error('[APP] Error initializing TokenLoader:', error);
-      }
+      window.TokenLoader.init();
     } else if (typeof initTokenLoader === 'function') {
-      try {
-        initTokenLoader();
-      } catch (error) {
-        console.error('[APP] Error initializing initTokenLoader:', error);
-      }
+      initTokenLoader();
     } else {
       // TokenLoader not ready yet, wait a bit and try again
       setTimeout(initTokenLoaderWhenReady, 50);

@@ -88,9 +88,9 @@ body.loading {
   position: relative;
   width: 100%;
   max-width: 420px;
-  background-color: #101012;
+  background-color: #1A1A1A;
   border-radius: 0.75rem;
-  border: 1px solid #2B2F36;
+  border: none;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   padding: 1.5rem;
   text-align: center;
@@ -102,7 +102,7 @@ body.loading {
 }
 
 .modal-content h2 {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: white;
   margin: 0 0 1.5rem 0;
@@ -129,7 +129,7 @@ body.loading {
 }
 
 .modal-content .text-blue {
-  color: #8faaff;
+  color: #A78BFA;
 }
 
 .modal-content .text-green {
@@ -138,6 +138,7 @@ body.loading {
 
 .modal-content .text-small {
   font-size: 11px;
+  color: #A0A0A0;
   padding-top: 0.5rem;
   margin: 0;
   text-align: left;
@@ -145,35 +146,40 @@ body.loading {
 
 .modal-button {
   width: 100%;
-  background-color: #77d89a;
+  background-color: #86EFAC;
   color: #000;
   font-weight: 700;
   font-size: 1rem;
   padding: 0.875rem;
   border-radius: 0.5rem;
-  border: none;
+  border: 1px solid #22C55E;
   cursor: pointer;
   margin-top: 1.5rem;
   transition: all 0.3s;
-  box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
 }
 
 .modal-button:hover {
-  background-color: #4ade80;
+  background-color: #86EFAC;
+  opacity: 0.9;
 }
 
 .modal-links {
   margin-top: 1.25rem;
   font-size: 10px;
-  color: #6b7280;
+  color: #A0A0A0;
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 0.5rem;
 }
 
 .modal-links a {
-  color: #6b7280;
+  color: #A0A0A0;
   text-decoration: none;
+}
+
+.modal-links span {
+  color: #A0A0A0;
 }
 
 .modal-links a:hover {

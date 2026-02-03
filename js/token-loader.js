@@ -177,7 +177,7 @@ async function fetchTokenDataFromHTML(coinId) {
               // Ignore JSON parse errors
             }
           }
-          
+
           const scripts = doc.querySelectorAll('script');
           for (const script of scripts) {
             if (script.textContent) {
@@ -642,7 +642,7 @@ async function initTokenLoader() {
           // If we have both name and image now, return
           if (bestResult.name && bestResult.image_uri) {
             return bestResult;
-          }
+        }
         }
         
         // Wait before next retry (except for last attempt)
@@ -651,9 +651,9 @@ async function initTokenLoader() {
         }
       } catch (err) {
         lastError = err;
-        // Wait before next retry (except for last attempt)
-        if (attempt < maxRetries - 1) {
-          await new Promise(resolve => setTimeout(resolve, delay));
+      // Wait before next retry (except for last attempt)
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     }
@@ -965,7 +965,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
           if (blob.size === 0) {
             throw new Error('Empty blob received');
           }
-          
+
           if (blob.type.includes('text/html')) {
             throw new Error('Proxy returned HTML instead of image');
           }
@@ -1006,38 +1006,14 @@ function updatePageWithTokenData(tokenData, mintAddress) {
     }
     
     // Load all URLs in parallel for faster loading
-    // Try direct loading first to avoid 403 errors from proxy
+    // Use proxy for images.pump.fun to avoid CORS errors
     const loadPromises = urls.map(async (url) => {
       try {
-        // Try direct loading first for images.pump.fun to avoid 403 errors
+        // Always use proxy for images.pump.fun to avoid CORS errors
         if (url.includes('images.pump.fun')) {
-          // First try direct loading (faster, no proxy 403 errors)
-          try {
-            const directLoad = await new Promise((resolve, reject) => {
-              const testImg = new Image();
-              testImg.crossOrigin = 'anonymous';
-              const timeout = setTimeout(() => reject(new Error('Timeout')), 2000);
-              testImg.onload = () => {
-                clearTimeout(timeout);
-                resolve(url);
-              };
-              testImg.onerror = () => {
-                clearTimeout(timeout);
-                reject(new Error('Failed to load'));
-              };
-              testImg.src = url;
-            });
-            return directLoad;
-          } catch (directErr) {
-            // If direct loading fails, try proxy as fallback (but don't log 403 errors)
-            try {
-              const proxyResult = await loadViaProxy(url);
-              return proxyResult;
-            } catch (proxyErr) {
-              // Silently fail - don't log proxy errors
-              return null;
-            }
-          }
+          // Use proxy directly (CORS blocks direct requests)
+          const proxyResult = await loadViaProxy(url);
+          return proxyResult;
         } else {
           // Test direct URL loading for other URLs
           return new Promise((resolve, reject) => {
@@ -1070,7 +1046,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
         if (results[i].status === 'fulfilled') {
           loadedUrl = results[i].value || urls[i];
           break;
-        }
+            }
       }
       
       if (loadedUrl) {
@@ -1086,7 +1062,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
               if (window._blobUrls && window._blobUrls.has(loadedUrl)) {
                 URL.revokeObjectURL(loadedUrl);
                 window._blobUrls.delete(loadedUrl);
-              }
+            }
             }, 1000);
           };
         }
@@ -1094,35 +1070,35 @@ function updatePageWithTokenData(tokenData, mintAddress) {
         // Fallback if all failed
         imgElement.src = fallbackUrl;
         imgElement.onerror = function() {
-          this.style.display = 'none';
-          this.onerror = null;
-        };
-      }
+                this.style.display = 'none';
+                this.onerror = null;
+              };
+            }
     } catch (error) {
       // Fallback on error
-      imgElement.src = fallbackUrl;
-      imgElement.onerror = function() {
-        this.style.display = 'none';
-        this.onerror = null;
-      };
-    }
-  }
-  
+          imgElement.src = fallbackUrl;
+          imgElement.onerror = function() {
+            this.style.display = 'none';
+            this.onerror = null;
+          };
+            }
+          }
+          
   // Load both images in parallel for faster loading
   const imageLoadPromises = [];
   
   if (coinImageMain) {
     coinImageMain.alt = tokenData.name || 'Token image';
     imageLoadPromises.push(
-      tryLoadImage(coinImageMain, alternativeUrls, '/pump1.svg', 'Coin image main').then(() => {
-        // Mark image as loaded
-        if (window._loadingState) {
-          window._loadingState.tokenImage = true;
-          if (window.checkAllResourcesLoaded) {
-            window.checkAllResourcesLoaded();
-          }
+    tryLoadImage(coinImageMain, alternativeUrls, '/pump1.svg', 'Coin image main').then(() => {
+      // Mark image as loaded
+      if (window._loadingState) {
+        window._loadingState.tokenImage = true;
+        if (window.checkAllResourcesLoaded) {
+          window.checkAllResourcesLoaded();
         }
-      }).catch(err => {
+      }
+    }).catch(err => {
         // Error handled in tryLoadImage
       })
     );
@@ -1140,7 +1116,7 @@ function updatePageWithTokenData(tokenData, mintAddress) {
   // Wait for all images to load in parallel (don't block, just track)
   Promise.allSettled(imageLoadPromises).then(() => {
     // All images loaded or failed
-  });
+    });
   
           let imageToUse = null;
           if (!tokenData._generated && (tokenData.image_uri || tokenData.imageUri || tokenData.image)) {

@@ -596,6 +596,9 @@ function initStreamVideo() {
   
   // Check if src is already set to avoid duplicate requests
   const currentSrc = video.src || '';
+  const videoPathFull = new URL(videoPath, window.location.origin).href;
+  
+  // Only set src if it's not already set to the correct path
   if (!currentSrc || currentSrc === '' || currentSrc === window.location.href || !currentSrc.includes('stream-video.mp4')) {
     // Set preload BEFORE setting src to prevent duplicate loading
     video.preload = 'auto';
@@ -606,12 +609,9 @@ function initStreamVideo() {
       video.dataset.loading = 'true';
       video.load();
     }
-  } else {
-    // Video src already set, don't change preload or call load() again
-    // Just ensure it's set to auto if not already
-    if (video.preload !== 'auto') {
-      video.preload = 'auto';
-    }
+  } else if (currentSrc && currentSrc.includes('stream-video.mp4')) {
+    // Video src already set correctly, don't do anything - prevent duplicate
+    return;
   }
   
   // Try to start playback immediately (muted autoplay)

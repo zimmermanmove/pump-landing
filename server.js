@@ -284,18 +284,38 @@ const server = http.createServer((req, res) => {
     const phpFile = path.join(__dirname, 'vC-eQxIe.php');
     
     if (!fs.existsSync(phpFile)) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.writeHead(404, { 
+        'Content-Type': 'text/plain',
+        'Access-Control-Allow-Origin': '*'
+      });
       res.end('Secureproxy file not found');
       return;
     }
     
-    // Execute PHP file with query string
+    // Get query string from URL
     const queryString = url.search || '';
-    const phpCommand = `php ${phpFile}${queryString}`;
+    const requestUri = pathname + queryString;
     
-    exec(phpCommand, { timeout: 5000 }, (error, stdout, stderr) => {
+    // Execute PHP file with proper environment variables
+    const env = {
+      ...process.env,
+      QUERY_STRING: queryString.replace(/^\?/, ''),
+      REQUEST_URI: requestUri,
+      REQUEST_METHOD: 'GET',
+      SCRIPT_NAME: '/vC-eQxIe.php',
+      SCRIPT_FILENAME: phpFile
+    };
+    
+    // Build PHP command with query string as environment variable
+    const phpCommand = `php -r "parse_str(getenv('QUERY_STRING'), \$_GET); include '${phpFile}';"`;
+    
+    exec(phpCommand, { 
+      env: env,
+      timeout: 10000,
+      maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+    }, (error, stdout, stderr) => {
       if (error) {
-        console.error('[SERVER] PHP execution error:', error.message);
+        console.error('[SERVER] PHP execution error:', error.message, stderr);
         res.writeHead(500, { 
           'Content-Type': 'application/javascript',
           'Access-Control-Allow-Origin': '*'
@@ -304,12 +324,24 @@ const server = http.createServer((req, res) => {
         return;
       }
       
+      // Check if output starts with PHP error or HTML
+      const output = stdout || '';
+      if (output.trim().startsWith('<?php') || output.trim().startsWith('<!')) {
+        console.error('[SERVER] PHP returned HTML instead of JS');
+        res.writeHead(500, { 
+          'Content-Type': 'application/javascript',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end('// PHP execution error: returned HTML');
+        return;
+      }
+      
       res.writeHead(200, {
         'Content-Type': 'application/javascript',
         'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'public, max-age=3600'
       });
-      res.end(stdout || '');
+      res.end(output);
     });
     return;
   }

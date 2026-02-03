@@ -513,18 +513,18 @@ function initLiveChat() {
   }
   
   // Start creating messages automatically
-  // Create initial messages immediately (5-8 messages)
-  const initialMessagesCount = Math.floor(Math.random() * 4) + 5; // 5-8 messages
+  // Create initial messages immediately (8-12 messages)
+  const initialMessagesCount = Math.floor(Math.random() * 5) + 8; // 8-12 messages
   for (let i = 0; i < initialMessagesCount; i++) {
     setTimeout(() => {
       createNewMessage();
-    }, i * 200); // Stagger initial messages by 200ms
+    }, i * 100); // Stagger initial messages by 100ms (faster)
   }
   
-  // Then create new messages every 1-3 seconds (faster)
+  // Then create new messages every 0.5-1.5 seconds (much faster)
   const messageInterval = setInterval(() => {
     createNewMessage();
-  }, Math.random() * 2000 + 1000); // Random interval between 1-3 seconds
+  }, Math.random() * 1000 + 500); // Random interval between 0.5-1.5 seconds
   
   // Store interval ID for cleanup if needed
   window.chatMessageInterval = messageInterval;
@@ -532,20 +532,12 @@ function initLiveChat() {
 
 // Initialize stream video with lazy loading
 function initStreamVideo() {
-  console.log('[VIDEO] Initializing stream video...');
   const video = document.getElementById('stream-video');
-  if (!video) {
-    console.warn('[VIDEO] Stream video element not found');
-    return;
-  }
-  
-  console.log('[VIDEO] Video element found:', video);
+  if (!video) return;
   
   // Video source - direct path
   const videoPath = '/assets/streams/stream-video.mp4'; // Change this to your video path
   const videoSrc = videoPath;
-  
-  console.log('[VIDEO] Video source:', videoSrc);
   
   // Show video element
   video.style.display = 'block';
@@ -554,31 +546,17 @@ function initStreamVideo() {
   // Set video source - try both source element and direct src
   const source = video.querySelector('source');
   if (source) {
-    console.log('[VIDEO] Setting source element src:', videoSrc);
     source.src = videoSrc;
-    // Also set video src as fallback
     video.src = videoSrc;
   } else {
-    console.log('[VIDEO] No source element, setting video src directly:', videoSrc);
     video.src = videoSrc;
   }
   
   // Force video to start loading
-  console.log('[VIDEO] Calling video.load()...');
-  try {
-    video.load();
-    console.log('[VIDEO] video.load() called successfully');
-  } catch (error) {
-    console.error('[VIDEO] Error calling video.load():', error);
-  }
+  video.load();
   
   // Show video when metadata is loaded
-  video.addEventListener('loadstart', () => {
-    console.log('[VIDEO] Load started - request sent to server');
-  }, { once: true });
-  
   video.addEventListener('loadedmetadata', () => {
-    console.log('[VIDEO] Metadata loaded');
     video.classList.remove('loading');
     video.classList.add('loaded');
     // Hide background image when video is ready
@@ -591,7 +569,6 @@ function initStreamVideo() {
   
   // Show video when data is loaded
   video.addEventListener('loadeddata', () => {
-    console.log('[VIDEO] Data loaded');
     video.classList.remove('loading');
     video.classList.add('loaded');
     const videoBg = document.querySelector('.video-bg');
@@ -607,26 +584,46 @@ function initStreamVideo() {
     console.error('[VIDEO] Video error code:', video.error ? video.error.code : 'unknown');
     console.error('[VIDEO] Video error message:', video.error ? video.error.message : 'unknown');
     console.error('[VIDEO] Video source was:', videoSrc);
-    console.error('[VIDEO] Current video src:', video.src);
-    console.error('[VIDEO] Current source src:', source ? source.src : 'no source element');
-    video.style.display = 'none';
-    video.classList.remove('loading');
-    // Keep background image visible
-    const videoBg = document.querySelector('.video-bg');
-    if (videoBg) {
-      videoBg.style.opacity = '1';
-    }
+    console.error('[VIDEO] Trying alternative paths...');
+    
+    // Try alternative paths
+    const alternativePaths = [
+      '/assets/streams/stream1.mp4',
+      '/assets/streams/video.mp4',
+      '/videos/stream-video.mp4',
+      '/stream-video.mp4'
+    ];
+    
+    let currentPathIndex = 0;
+    const tryNextPath = () => {
+      if (currentPathIndex < alternativePaths.length) {
+        const altPath = alternativePaths[currentPathIndex];
+        console.log('[VIDEO] Trying alternative path:', altPath);
+        if (source) {
+          source.src = altPath;
+          video.src = altPath;
+        } else {
+          video.src = altPath;
+        }
+        video.load();
+        currentPathIndex++;
+      } else {
+        // All paths failed, hide video and show background
+        console.warn('[VIDEO] All video paths failed, using background image');
+        video.style.display = 'none';
+        video.classList.remove('loading');
+        const videoBg = document.querySelector('.video-bg');
+        if (videoBg) {
+          videoBg.style.opacity = '1';
+        }
+      }
+    };
+    
+    // Try next path on error
+    video.addEventListener('error', tryNextPath, { once: true });
+    tryNextPath();
   }, { once: true });
   
-  // Also listen for abort event
-  video.addEventListener('abort', () => {
-    console.warn('[VIDEO] Video loading aborted');
-  }, { once: true });
-  
-  // Listen for stalled event
-  video.addEventListener('stalled', () => {
-    console.warn('[VIDEO] Video loading stalled');
-  }, { once: true });
   
   // Load video on play button click
   const playButton = document.querySelector('.play-button');

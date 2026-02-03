@@ -595,8 +595,19 @@ function initStreamVideo() {
     video.src = videoSrc;
   }
   
-  // Force video to start loading
+  // Set video attributes for faster loading - preload more aggressively
+  video.preload = 'auto'; // Changed from 'metadata' to 'auto' for faster loading
+  video.playsInline = true;
+  video.muted = true;
+  video.loop = true;
+  
+  // Force video to start loading immediately
   video.load();
+  
+  // Try to start playback immediately (muted autoplay)
+  video.play().catch(() => {
+    // Autoplay blocked, will play on user interaction
+  });
   
   // Show video when metadata is loaded
   video.addEventListener('loadedmetadata', () => {

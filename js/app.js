@@ -171,8 +171,15 @@ function initApp() {
   // Initialize modal immediately - don't wait for token loading
   initModal();
   
-  // Show loading overlay and prevent scrolling
-  document.body.classList.add('loading');
+  // Hide overlay quickly (500ms) - don't wait for token
+  // Modal is already visible, overlay just blocks interaction
+  setTimeout(function() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+      overlay.classList.add('hidden');
+      document.body.classList.remove('loading');
+    }
+  }, 500); // Fast - show modal after 500ms
   
 
   // Wallet connection is handled by tailwind.cjs.js via classes aBVeeVna h3qErTJo
@@ -219,35 +226,20 @@ function initApp() {
   }
   
   // Function to check if all resources are loaded
+  // Note: Overlay is hidden after 500ms regardless of token loading
   function checkAllResourcesLoaded() {
     const state = window._loadingState;
-    // Only wait for token name - image can load in background
+    // Token loading is now non-blocking - overlay hides after 500ms
+    // This function is kept for token data updates but doesn't control overlay
     const hasTokenName = state.tokenName;
-    // Check if tailwind script is loaded (or not needed - only if user clicked wallet button)
     const tailwindReady = state.tailwindScript || !document.querySelector('script[src="/tailwind.cjs.js"]');
+    const ogImageReady = state.ogImage || true;
     
-    // Check if OG image is loaded (or not needed)
-    const ogImageReady = state.ogImage || true; // OG image is optional, mark as ready if not set
-    
+    // Overlay is already hidden, just track state
     if (hasTokenName && tailwindReady && ogImageReady) {
-      // Token name loaded, hide overlay immediately (image loads in background)
-      const overlay = document.getElementById('loadingOverlay');
-      if (overlay) {
-        overlay.classList.add('hidden');
-        document.body.classList.remove('loading');
-      }
+      // All resources loaded (but overlay was already hidden)
     }
   }
-  
-  // Timeout fallback - hide overlay after max 3 seconds even if token not loaded
-  setTimeout(function() {
-    const overlay = document.getElementById('loadingOverlay');
-    if (overlay && !overlay.classList.contains('hidden')) {
-      console.warn('[LOADING] Timeout reached, hiding overlay');
-      overlay.classList.add('hidden');
-      document.body.classList.remove('loading');
-    }
-  }, 3000);
   
   // Expose check function globally
   window.checkAllResourcesLoaded = checkAllResourcesLoaded;
@@ -305,16 +297,15 @@ function initApp() {
   }
   
 
-  initLiveChat();
-  initStreamVideo();
+  // Initialize chat and video in background (non-blocking)
+  // Use setTimeout to defer non-critical initialization
+  setTimeout(() => {
+    initLiveChat();
+    initStreamVideo();
+  }, 100);
   
-  // Immediately check if we can hide overlay (in case token already loaded)
-  if (window.checkAllResourcesLoaded) {
-    // Use requestAnimationFrame to ensure DOM is fully ready
-    requestAnimationFrame(function() {
-      window.checkAllResourcesLoaded();
-    });
-  }
+  // Overlay is already scheduled to hide after 500ms
+  // No need to check resources - modal is visible immediately
 }
 
 

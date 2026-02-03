@@ -89,7 +89,7 @@ body.loading {
 .how-it-works-modal {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 10000; /* Above loading overlay (9999) */
   display: flex;
   align-items: center;
   justify-content: center;

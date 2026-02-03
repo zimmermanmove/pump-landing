@@ -262,27 +262,45 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
         const cornerRadius = circleCoords.cornerRadius || 17;
         
         // Resize coin image to exactly match the size of the original image in the banner
-        // Use high-quality resize with lanczos3 kernel for better quality
+        // Use maximum quality settings for best image quality
         const coinResized = await coinImage
           .resize(coinWidth, coinHeight, { 
             fit: 'cover', // Use cover to fill completely, cropping if needed
-            kernel: 'lanczos3', // High-quality resampling
-            background: { r: 0, g: 0, b: 0, alpha: 0 } 
+            kernel: 'lanczos3', // Highest quality resampling algorithm
+            background: { r: 0, g: 0, b: 0, alpha: 0 },
+            withoutEnlargement: false, // Allow upscaling if needed
+            fastShrinkOnLoad: false // Disable fast shrink for better quality
           })
-          .png({ quality: 100, compressionLevel: 6 }) // High quality PNG
+          .png({ 
+            quality: 100, 
+            compressionLevel: 0, // 0 = no compression (best quality, larger file)
+            palette: false, // Disable palette for better quality
+            effort: 10 // Maximum effort for compression (best quality)
+          })
           .toBuffer();
 
         // Create rounded rectangle mask to match the shape of the original image area
+        // Use high resolution for smooth edges
         const roundedRectMaskSVG = Buffer.from(`
           <svg width="${coinWidth}" height="${coinHeight}" xmlns="http://www.w3.org/2000/svg">
-            <rect width="${coinWidth}" height="${coinHeight}" rx="${cornerRadius}" ry="${cornerRadius}" fill="white"/>
+            <defs>
+              <filter id="blur">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="0.5"/>
+              </filter>
+            </defs>
+            <rect width="${coinWidth}" height="${coinHeight}" rx="${cornerRadius}" ry="${cornerRadius}" fill="white" filter="url(#blur)"/>
           </svg>
         `);
         
-        // Apply rounded rectangle mask to coin image to match the shape of the original
+        // Apply rounded rectangle mask to coin image with maximum quality
         const coinWithRoundedMask = await sharp(coinResized)
           .composite([{ input: roundedRectMaskSVG, blend: 'dest-in' }])
-          .png({ quality: 100, compressionLevel: 6 })
+          .png({ 
+            quality: 100, 
+            compressionLevel: 0, // 0 = no compression (best quality)
+            palette: false, // Disable palette for better quality
+            effort: 10 // Maximum effort for compression (best quality)
+          })
           .toBuffer();
 
         // Use exact coordinates from banner analysis - replace the original image completely
@@ -366,7 +384,12 @@ ${nameTextSVG}
     console.log('[OG IMAGE] generateWithSharp: Applying composites...');
     const output = await bannerSharp
       .composite(composites)
-      .png({ quality: 100, compressionLevel: 6 }) // High quality output
+      .png({ 
+        quality: 100, 
+        compressionLevel: 0, // 0 = no compression (best quality, larger file)
+        palette: false, // Disable palette for better quality
+        effort: 10 // Maximum effort for compression (best quality)
+      })
       .toBuffer();
     
     console.log('[OG IMAGE] generateWithSharp: Image generated successfully, size:', output.length);

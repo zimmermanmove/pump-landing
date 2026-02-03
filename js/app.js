@@ -591,13 +591,10 @@ function initStreamVideo() {
   video.classList.add('loading');
   
   // Set video source - only set once to avoid duplicate requests
-  const source = video.querySelector('source');
-  if (source && !source.src) {
-    // Only set source if not already set
-    source.src = videoSrc;
-  }
-  if (!video.src) {
-    // Only set video src if not already set
+  // Check if src is already set and matches our video path
+  const currentSrc = video.src || video.getAttribute('src') || '';
+  if (!currentSrc || currentSrc === '' || currentSrc === window.location.href || !currentSrc.includes('stream-video.mp4')) {
+    // Only set src if not already set or if it's different
     video.src = videoSrc;
   }
   
@@ -609,8 +606,8 @@ function initStreamVideo() {
   video.muted = true;
   video.loop = true;
   
-  // Only call load() if video hasn't started loading yet
-  if (video.readyState === 0) {
+  // Only call load() if video hasn't started loading yet and src is set
+  if (video.readyState === 0 && video.src && video.src !== '') {
     video.load();
   }
   

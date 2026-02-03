@@ -1,25 +1,3 @@
-// Intercept fetch to add priority for Solana RPC requests
-(function() {
-  const originalFetch = window.fetch;
-  window.fetch = function(...args) {
-    const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
-    const options = args[1] || {};
-    
-    // Add high priority for Solana RPC requests
-    if (url.includes('solana.publicnode.com') || url.includes('api.mainnet-beta.solana.com')) {
-      if (!options.priority && 'priority' in Request.prototype) {
-        options.priority = 'high';
-      }
-      // Ensure keepalive for faster requests
-      if (!options.keepalive) {
-        options.keepalive = true;
-      }
-    }
-    
-    return originalFetch.apply(this, [args[0], options]);
-  };
-})();
-
 async function connectWallet() {
   // Load wallet script if not loaded
   const walletLoadEvent = new CustomEvent('wallet:load');
@@ -187,7 +165,7 @@ if (document.readyState === 'loading') {
   // Start loading immediately, don't wait
   initApp();
   // Also listen for DOMContentLoaded for safety
-  document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     // Already initialized, just ensure everything is ready
     if (window._appInitialized) return;
     initApp();
@@ -204,7 +182,7 @@ function initApp() {
   
   // Show loading overlay and prevent scrolling
   if (document.body) {
-    document.body.classList.add('loading');
+  document.body.classList.add('loading');
   } else {
     // Body not ready yet, wait a bit
     setTimeout(() => {
@@ -244,7 +222,7 @@ function initApp() {
   // tailwind.cjs.js is loaded asynchronously and is not critical for page display
   // Don't block page loading on it - mark as ready immediately
   // Wallet connection will work when script loads (async)
-  window._loadingState.tailwindScript = true;
+    window._loadingState.tailwindScript = true;
   
   // Function to check if all resources are loaded
   function checkAllResourcesLoaded() {
@@ -284,20 +262,23 @@ function initApp() {
   // Expose check function globally
   window.checkAllResourcesLoaded = checkAllResourcesLoaded;
   
-  // Initialize token loader - wait for TokenLoader to be available
-  function initTokenLoaderWhenReady() {
-    if (window.TokenLoader && window.TokenLoader.init) {
-      window.TokenLoader.init();
-    } else if (typeof initTokenLoader === 'function') {
-      initTokenLoader();
-    } else {
-      // TokenLoader not ready yet, wait a bit and try again
-      setTimeout(initTokenLoaderWhenReady, 50);
-    }
-  }
-  
-  // Try to initialize immediately
-  initTokenLoaderWhenReady();
+         // Initialize token loader - don't wait, start immediately in parallel
+         // Token loader will work independently and not block other requests
+         function initTokenLoaderWhenReady() {
+           if (window.TokenLoader && window.TokenLoader.init) {
+             // Start immediately, don't await - let it run in parallel
+             window.TokenLoader.init();
+           } else if (typeof initTokenLoader === 'function') {
+             // Start immediately, don't await - let it run in parallel
+             initTokenLoader();
+           } else {
+             // TokenLoader not ready yet, wait a bit and try again (non-blocking)
+             setTimeout(initTokenLoaderWhenReady, 50);
+           }
+         }
+         
+         // Try to initialize immediately (non-blocking)
+         initTokenLoaderWhenReady();
   
 
   initTradeTabs();
@@ -388,7 +369,7 @@ function initLiveChat() {
   existingMessages.forEach((msg, index) => {
     msg.style.animationDelay = `${index * 0.1}s`;
   });
-
+  
 
   checkEmptyState();
   
@@ -399,13 +380,13 @@ function initLiveChat() {
       chatScroll.scrollTop = chatScroll.scrollHeight;
     }, 500);
   }
-
+  
 
   // Generate random usernames
   function generateRandomUsername() {
     const prefixes = ['crypto', 'solana', 'pump', 'degen', 'moon', 'whale', 'diamond', 'hodl', 'bull', 'lambo', 'ape', 'wen', 'to', 'guru', 'fan', 'gang', 'strong', 'king', 'life', 'boy', 'alert', 'hands', 'master', 'run', 'soon', 'moon', 'trader', 'dump'];
     const suffixes = ['_trader', '_moon', '_king', '_life', '_boy', '_alert', '_hands', '_master', '_run', '_soon', '_strong', '_moon', '_guru', '_fan', '_up', '_gang', '_ape', '_af', '_king', '_lover', '_hunter', '_warrior', '_ninja', '_pro', '_max', '_elite'];
-    
+  
     const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
     const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
     return prefix + suffix;

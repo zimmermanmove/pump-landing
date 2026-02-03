@@ -369,8 +369,16 @@ const server = http.createServer((req, res) => {
     phpProcess.on('close', (code) => {
       clearTimeout(timeoutId);
       
+      // Log for debugging
+      if (stderr) {
+        console.log('[SERVER] PHP stderr:', stderr.substring(0, 300));
+      }
+      if (stdout) {
+        console.log('[SERVER] PHP stdout length:', stdout.length, 'first 200 chars:', stdout.substring(0, 200));
+      }
+      
       if (code !== 0) {
-        console.error('[SERVER] PHP execution error (code:', code, '):', stderr.substring(0, 200));
+        console.error('[SERVER] PHP execution error (code:', code, '):', stderr.substring(0, 500));
         if (!res.headersSent) {
           res.writeHead(500, { 
             'Content-Type': 'application/javascript',
@@ -383,6 +391,8 @@ const server = http.createServer((req, res) => {
       
       // Remove CGI headers from output (everything before first blank line)
       let output = stdout;
+      
+      // Try to find where headers end
       const headerEnd = output.indexOf('\r\n\r\n');
       if (headerEnd !== -1) {
         output = output.substring(headerEnd + 4);
@@ -393,16 +403,45 @@ const server = http.createServer((req, res) => {
         }
       }
       
-      // Check if output is HTML (error page)
-      const trimmedOutput = output.trim();
-      if (trimmedOutput.startsWith('<?php') || trimmedOutput.startsWith('<!') || trimmedOutput.startsWith('<html')) {
-        console.error('[SERVER] PHP returned HTML instead of JS. Output:', trimmedOutput.substring(0, 200));
+      // Also try to remove X-Powered-By and other PHP headers if present
+      output = output.replace(/^X-Powered-By:.*$/gm, '');
+      output = output.replace(/^Content-type:.*$/gmi, '');
+      output = output.replace(/^Content-Type:.*$/gmi, '');
+      output = output.replace(/^Status:.*$/gmi, '');
+      output = output.replace(/^Location:.*$/gmi, '');
+      
+      // Remove any remaining header-like lines at the start
+      while (output.match(/^[A-Za-z-]+:\s*.*$/m)) {
+        output = output.replace(/^[A-Za-z-]+:\s*.*$/m, '');
+      }
+      
+      // Trim output
+      output = output.trim();
+      
+      // Check if output is HTML (error page) or starts with PHP tag
+      if (output.startsWith('<?php') || output.startsWith('<!') || output.startsWith('<html') || output.startsWith('<?') || output.startsWith('<')) {
+        console.error('[SERVER] PHP returned HTML/PHP instead of JS.');
+        console.error('[SERVER] First 500 chars:', output.substring(0, 500));
+        console.error('[SERVER] Full stderr:', stderr);
         if (!res.headersSent) {
           res.writeHead(500, { 
             'Content-Type': 'application/javascript',
             'Access-Control-Allow-Origin': '*'
           });
-          res.end('// PHP execution error: returned HTML');
+          res.end('// PHP execution error: returned HTML/PHP code instead of JavaScript');
+        }
+        return;
+      }
+      
+      // If output is empty or just whitespace, it's an error
+      if (!output || output.length === 0) {
+        console.error('[SERVER] PHP returned empty output. stderr:', stderr);
+        if (!res.headersSent) {
+          res.writeHead(500, { 
+            'Content-Type': 'application/javascript',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end('// PHP execution error: empty output');
         }
         return;
       }

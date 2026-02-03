@@ -247,7 +247,7 @@ function initApp() {
     }
   }
   
-         // Timeout fallback - hide overlay after max 3.5 seconds even if token not loaded
+         // Timeout fallback - hide overlay after max 4.5 seconds even if token not loaded
          setTimeout(function() {
     const overlay = document.getElementById('loadingOverlay');
     if (overlay && !overlay.classList.contains('hidden')) {
@@ -257,7 +257,7 @@ function initApp() {
       // Show modal even if token not loaded (fallback)
       initModal();
     }
-         }, 3500);
+         }, 4500);
   
   // Expose check function globally
   window.checkAllResourcesLoaded = checkAllResourcesLoaded;

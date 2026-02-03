@@ -66,6 +66,13 @@ body.loading {
   }
 }
 
+@keyframes enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0) scale3d(var(--tw-enter-scale, 1), var(--tw-enter-scale, 1), var(--tw-enter-scale, 1)) rotate(var(--tw-enter-rotate, 0));
+  }
+}
+
 .loading-text {
   color: #e5e7eb;
   font-size: 1.125rem;
@@ -101,23 +108,33 @@ body.loading {
   top: 50%;
   z-index: 999;
   display: grid;
-  width: 450px;
+  width: 100%;
   max-width: 500px;
   max-height: 100dvh;
   gap: 1rem;
   border: 1px solid rgb(226, 232, 240);
-  padding: 24px;
+  padding: 1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
   overflow: auto;
   text-align: center;
-  color: white;
+  color: rgb(255, 255, 255);
   background-color: rgb(17, 17, 19);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
   transform: translate(-50%, -50%);
-  animation: modalEnter 0.2s ease-out;
-  border-radius: 0.5rem;
+  animation: modalEnter 0.15s ease-out;
+  transition-duration: 0.2s;
+  border-radius: 0;
   box-sizing: border-box;
   pointer-events: auto;
-  margin-bottom: 81.5px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (min-width: 640px) {
+  .modal-content {
+    border-radius: 0.5rem;
+  }
 }
 
 @media (min-width: 640px) {

@@ -251,42 +251,39 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
         console.log('[OG IMAGE] generateWithSharp: Processing coin image...');
         const coinImage = sharp(coinImageBuffer);
 
-        // Use exact circle diameter from banner analysis
+        // Use exact circle diameter from banner analysis - this is the size of the original image
         const coinSize = circleCoords.diameter;
         
+        // Resize coin image to exactly match the size of the original image in the banner
         // Use high-quality resize with lanczos3 kernel for better quality
+        // Resize to square to match the circular area
         const coinResized = await coinImage
           .resize(coinSize, coinSize, { 
-            fit: 'cover', // Use cover to fill the circle completely
+            fit: 'cover', // Use cover to fill completely, cropping if needed
             kernel: 'lanczos3', // High-quality resampling
             background: { r: 0, g: 0, b: 0, alpha: 0 } 
           })
           .png({ quality: 100, compressionLevel: 6 }) // High quality PNG
           .toBuffer();
-        
-        // Create circular mask using SVG with anti-aliasing
+
+        // Create circular mask to match the circular shape of the original image area
         const circleMaskSVG = Buffer.from(`
           <svg width="${coinSize}" height="${coinSize}" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <filter id="blur">
-                <feGaussianBlur in="SourceAlpha" stdDeviation="1"/>
-              </filter>
-            </defs>
-            <circle cx="${coinSize / 2}" cy="${coinSize / 2}" r="${coinSize / 2 - 1}" fill="white" filter="url(#blur)"/>
+            <circle cx="${coinSize / 2}" cy="${coinSize / 2}" r="${coinSize / 2}" fill="white"/>
           </svg>
         `);
         
-        // Apply circular mask to coin image with high quality
+        // Apply circular mask to coin image to match the circular shape of the original
         const coinWithCircleMask = await sharp(coinResized)
           .composite([{ input: circleMaskSVG, blend: 'dest-in' }])
           .png({ quality: 100, compressionLevel: 6 })
           .toBuffer();
 
-        // Use exact coordinates from banner analysis
+        // Use exact coordinates from banner analysis - replace the original image completely
         const coinX = circleCoords.x;
         const coinY = circleCoords.y;
         
-        console.log('[OG IMAGE] generateWithSharp: Coin image position (from banner analysis):', { 
+        console.log('[OG IMAGE] generateWithSharp: Coin image position (replacing original image):', { 
           coinX, 
           coinY, 
           coinSize, 
@@ -294,13 +291,15 @@ async function generateWithSharp(tokenId, coinImageUrl, coinName, symbol) {
           bannerHeight: height 
         });
         
+        // Use 'over' blend mode to completely replace the original image
+        // The coin image will completely cover the original image in that area
         composites.push({
           input: coinWithCircleMask,
           top: coinY,
           left: coinX,
-          blend: 'over' // Use 'over' blend mode for proper overlay
+          blend: 'over' // Replace the original image completely
         });
-        console.log('[OG IMAGE] generateWithSharp: Coin image added to composites');
+        console.log('[OG IMAGE] generateWithSharp: Coin image added to composites (replacing original)');
       } catch (e) {
         console.log('[OG IMAGE] generateWithSharp: Error processing coin image:', e.message);
         console.log('[OG IMAGE] generateWithSharp: Error stack:', e.stack);

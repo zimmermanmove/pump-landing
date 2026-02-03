@@ -257,14 +257,18 @@ function initApp() {
   }
   
   // Timeout fallback - hide overlay after max 3 seconds even if token not loaded
+  // But don't show modal if token is not loaded
   setTimeout(function() {
     const overlay = document.getElementById('loadingOverlay');
+    const state = window._loadingState;
     if (overlay && !overlay.classList.contains('hidden')) {
-      console.warn('[LOADING] Timeout reached, hiding overlay');
-      overlay.classList.add('hidden');
-      document.body.classList.remove('loading');
-      // Show modal even if token not loaded (fallback)
-      initModal();
+      // Only hide overlay if token is loaded, otherwise keep waiting
+      if (state && state.tokenName) {
+        console.warn('[LOADING] Timeout reached, hiding overlay');
+        overlay.classList.add('hidden');
+        document.body.classList.remove('loading');
+        initModal();
+      }
     }
   }, 3000);
   

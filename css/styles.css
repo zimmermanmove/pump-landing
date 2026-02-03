@@ -93,12 +93,12 @@ body.loading {
   justify-content: center;
   padding: 1rem;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.5s ease-in-out;
 }
 
 .how-it-works-modal:not([style*="display: none"]) {
   display: flex;
-  animation: modalEnter 0.3s ease forwards;
+  animation: modalEnter 0.5s ease-in-out forwards;
 }
 
 .how-it-works-modal.hidden {
@@ -141,8 +141,8 @@ body.loading {
   transform-origin: 250px 225px;
   transform-box: view-box;
   transform-style: flat;
-  animation: modalEnter 0.3s ease;
-  transition: opacity 0.3s ease;
+  animation: modalEnter 0.5s ease-in-out;
+  transition: opacity 0.5s ease-in-out;
   border-radius: 0px;
   border-bottom-left-radius: 0px;
   border-bottom-right-radius: 0px;

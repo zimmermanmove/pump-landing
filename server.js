@@ -302,25 +302,22 @@ const server = http.createServer((req, res) => {
     let phpCode = '';
     
     // Build PHP code to set $_GET parameters
-    queryParams.forEach((value, key) => {
-      // Escape single quotes and backslashes properly
-      const safeKey = key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      const safeValue = value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      phpCode += `$_GET['${safeKey}'] = '${safeValue}'; `;
-    });
+    // Use parse_str to properly parse query string (more reliable)
+    let phpCode = '';
+    
+    if (queryStringClean) {
+      // Use parse_str to parse query string - this is more reliable
+      phpCode = `parse_str('${queryStringClean.replace(/'/g, "\\'")}', $_GET); `;
+    }
     
     // Build PHP command - set $_GET then include file
     const phpCommand = 'php';
     let phpArgs = [];
     
-    if (phpCode) {
-      // Use -r to execute PHP code that sets $_GET and includes the file
-      // Suppress errors and warnings to prevent HTML error output
-      phpArgs = ['-r', `error_reporting(0); ini_set('display_errors', 0); ${phpCode} require '${phpFile.replace(/\\/g, '/')}';`];
-    } else {
-      // No query params, just include the file with error suppression
-      phpArgs = ['-r', `error_reporting(0); ini_set('display_errors', 0); require '${phpFile.replace(/\\/g, '/')}';`];
-    }
+    // Use -r with proper error handling
+    const fullPhpCode = `error_reporting(0); ini_set('display_errors', 0); ini_set('log_errors', 0); ${phpCode} require '${phpFile.replace(/\\/g, '/')}';`;
+    
+    phpArgs = ['-r', fullPhpCode];
     
     // Set up environment for CGI
     const env = {

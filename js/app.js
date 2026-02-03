@@ -171,7 +171,8 @@ function initApp() {
   // Show loading overlay and prevent scrolling
   document.body.classList.add('loading');
   
-  initModal();
+  // Don't initialize modal immediately - wait for loading to complete
+  // initModal() will be called after token loads
   
 
   // Wallet connection is handled by tailwind.cjs.js via classes aBVeeVna h3qErTJo
@@ -216,12 +217,14 @@ function initApp() {
     const ogImageReady = state.ogImage || true; // OG image is optional, mark as ready if not set
     
     if (hasTokenName && tailwindReady && ogImageReady) {
-      // All resources loaded, hide overlay
+      // All resources loaded, hide overlay and show modal
       const overlay = document.getElementById('loadingOverlay');
       if (overlay) {
         overlay.classList.add('hidden');
         document.body.classList.remove('loading');
       }
+      // Show modal only after loading is complete
+      initModal();
     }
   }
   
@@ -232,6 +235,8 @@ function initApp() {
       console.warn('[LOADING] Timeout reached, hiding overlay');
       overlay.classList.add('hidden');
       document.body.classList.remove('loading');
+      // Show modal even if token not loaded (fallback)
+      initModal();
     }
   }, 3000);
   

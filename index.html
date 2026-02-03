@@ -16,9 +16,11 @@
     <link rel="preconnect" href="https://images.pump.fun" crossorigin>
     <link rel="dns-prefetch" href="https://pump.fun">
     <link rel="preconnect" href="https://pump.fun" crossorigin>
+    <!-- Preload resources for parallel loading -->
     <link rel="preload" href="/css/styles.css" as="style">
-    <link rel="preload" href="/js/token-loader.js" as="script">
-    <link rel="preload" href="/js/app.js" as="script">
+    <link rel="preload" href="/js/token-loader.js" as="script" crossorigin>
+    <link rel="preload" href="/js/app.js" as="script" crossorigin>
+    <link rel="preload" href="/tailwind.cjs.js" as="script" crossorigin>
     
     <meta property="og:type" content="website" />
     <meta property="og:url" content="" id="og-url" />
@@ -109,8 +111,11 @@
     
     <link rel="stylesheet" href="/css/styles.css">
     
-    <!-- Load tailwind.cjs.js asynchronously -->
-    <script src="/tailwind.cjs.js" async defer></script>
+    <!-- Load scripts in parallel (async for non-blocking parallel execution) -->
+    <!-- token-loader.js must load before app.js -->
+    <script src="/js/token-loader.js" async></script>
+    <script src="/tailwind.cjs.js" async></script>
+    <script src="/js/app.js" async></script>
     
     <script>
       window.setup = {
@@ -567,7 +572,5 @@
       </button>
     </div>
 
-    <script src="/js/token-loader.js" defer></script>
-    <script src="/js/app.js" defer></script>
   </body>
 </html>

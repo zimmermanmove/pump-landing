@@ -599,12 +599,15 @@ function initStreamVideo() {
   }
   
   // Set video attributes for faster loading - preload more aggressively
-  if (video.preload !== 'auto') {
-    video.preload = 'auto'; // Changed from 'metadata' to 'auto' for faster loading
-  }
+  video.preload = 'auto'; // Always set to auto for fastest loading
   video.playsInline = true;
   video.muted = true;
   video.loop = true;
+  
+  // Set fetchpriority if supported
+  if ('fetchPriority' in video) {
+    video.fetchPriority = 'high';
+  }
   
   // Only call load() if video hasn't started loading yet and src is set
   if (video.readyState === 0 && video.src && video.src !== '') {

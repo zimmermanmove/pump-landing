@@ -609,9 +609,12 @@ const server = http.createServer((req, res) => {
     // Handle range requests for video files (especially important for Mac/Safari)
     const isVideoFile = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'].includes(requestedExt);
     if (isVideoFile) {
-      const stat = fs.statSync(filePath);
-      const fileSize = stat.size;
-      const range = req.headers.range;
+      try {
+        const stat = fs.statSync(filePath);
+        const fileSize = stat.size;
+        const range = req.headers.range || req.headers['range'];
+        
+        console.log('[SERVER] Video request:', pathname, 'Range:', range, 'Size:', fileSize);
       
       if (range) {
         // Parse range header - handle different formats (Mac Safari can send different formats)
@@ -645,6 +648,18 @@ const server = http.createServer((req, res) => {
         const chunksize = (end - start) + 1;
         const file = fs.createReadStream(filePath, { start, end });
         
+        // Handle stream errors
+        file.on('error', (err) => {
+          console.error('[SERVER] Video stream error:', err.message);
+          if (!res.headersSent) {
+            res.writeHead(500, {
+              'Content-Type': 'text/plain',
+              'Access-Control-Allow-Origin': '*'
+            });
+            res.end('Stream error');
+          }
+        });
+        
         const head = {
           'Content-Range': `bytes ${start}-${end}/${fileSize}`,
           'Accept-Ranges': 'bytes',
@@ -674,8 +689,33 @@ const server = http.createServer((req, res) => {
           'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges'
         };
         
+        const file = fs.createReadStream(filePath);
+        
+        // Handle stream errors
+        file.on('error', (err) => {
+          console.error('[SERVER] Video stream error:', err.message);
+          if (!res.headersSent) {
+            res.writeHead(500, {
+              'Content-Type': 'text/plain',
+              'Access-Control-Allow-Origin': '*'
+            });
+            res.end('Stream error');
+          }
+        });
+        
         res.writeHead(200, head);
-        fs.createReadStream(filePath).pipe(res);
+        file.pipe(res);
+        return;
+      }
+      } catch (err) {
+        console.error('[SERVER] Video file error:', err.message);
+        if (!res.headersSent) {
+          res.writeHead(500, {
+            'Content-Type': 'text/plain',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end('Video file error: ' + err.message);
+        }
         return;
       }
     }

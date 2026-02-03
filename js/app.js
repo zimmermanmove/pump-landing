@@ -317,18 +317,10 @@ function initApp() {
 
   initLiveChat();
   
-  // Initialize video only once - STRICT check
-  if (!window._videoInitialized && !window._videoInitInProgress) {
-    window._videoInitInProgress = true;
-    try {
-      initStreamVideo();
-      window._videoInitialized = true;
-    } catch (e) {
-      console.error('[VIDEO] Error initializing video:', e);
-      window._videoInitInProgress = false;
-    } finally {
-      window._videoInitInProgress = false;
-    }
+  // Initialize video only once
+  if (!window._videoInitialized) {
+    window._videoInitialized = true;
+    initStreamVideo();
   }
   
   // Immediately check if we can hide overlay (in case token already loaded)
@@ -594,26 +586,26 @@ function initStreamVideo() {
     return;
   }
   
-  // STRICT duplicate prevention - check multiple flags
-  if (video.dataset.initialized === 'true' || window._videoSrcSet === true || window._videoInitInProgress === true) {
-    console.log('[VIDEO] Already initialized or in progress, skipping');
+  // STRICT duplicate prevention - check if already initialized
+  if (video.dataset.initialized === 'true') {
+    console.log('[VIDEO] Already initialized, skipping');
     return; // Already initialized, exit immediately
   }
-  
-  // Mark as initialized IMMEDIATELY to prevent race conditions
-  video.dataset.initialized = 'true';
-  window._videoSrcSet = true;
-  console.log('[VIDEO] Initializing video - ONE TIME ONLY');
   
   // Check if video already has src set (from any source)
   const currentSrc = video.src || video.getAttribute('src') || '';
   const videoPath = '/assets/streams/stream-video.mp4';
   
-  // If src is already set correctly, don't do anything
+  // If src is already set correctly, mark as initialized and return
   if (currentSrc && currentSrc.includes('stream-video.mp4')) {
-    console.log('[VIDEO] Src already set, skipping');
+    console.log('[VIDEO] Src already set, marking as initialized');
+    video.dataset.initialized = 'true';
     return;
   }
+  
+  // Mark as initialized IMMEDIATELY to prevent race conditions
+  video.dataset.initialized = 'true';
+  console.log('[VIDEO] Initializing video - ONE TIME ONLY');
   
   // Show video element
   video.style.display = 'block';
@@ -623,22 +615,13 @@ function initStreamVideo() {
   video.playsInline = true;
   video.muted = true;
   video.loop = true;
-  video.preload = 'none'; // Explicitly set to prevent auto-loading
+  video.preload = 'auto'; // Set to auto to allow loading
   
-  // Set src ONLY ONCE - use direct assignment (simpler and more reliable)
-  // Remove any existing src first to ensure clean state
-  if (video.src) {
-    video.removeAttribute('src');
-    video.src = '';
-  }
+  // Set src ONLY ONCE
+  video.src = videoPath;
   
-  // Set src only if not already set
-  if (!video.src || !video.src.includes('stream-video.mp4')) {
-    video.src = videoPath;
-  }
-  
-  // Don't call load() or play() immediately - wait for metadata
-  // This prevents duplicate requests
+  // Call load() to start loading
+  video.load();
   
   // Show video when metadata is loaded - only once
   const handleMetadataLoaded = () => {

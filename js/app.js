@@ -166,10 +166,8 @@ document.addEventListener('DOMContentLoaded', function() {
   initModal();
   
 
-  const connectWalletBtn = document.getElementById('connectWalletBtn');
-  if (connectWalletBtn) {
-    connectWalletBtn.addEventListener('click', connectWallet);
-  }
+  // Wallet connection is handled by tailwind.cjs.js via classes aBVeeVna h3qErTJo
+  // No need for custom connectWallet function if using the new system
   
 
 

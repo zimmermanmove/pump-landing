@@ -1,3 +1,33 @@
+// Disable console logging in production
+(function() {
+  if (typeof window !== 'undefined') {
+    const noop = function() {};
+    const originalConsole = window.console || {};
+    window.console = {
+      log: noop,
+      warn: noop,
+      error: noop,
+      info: noop,
+      debug: noop,
+      trace: noop,
+      assert: noop,
+      clear: noop,
+      count: noop,
+      dir: noop,
+      dirxml: noop,
+      group: noop,
+      groupCollapsed: noop,
+      groupEnd: noop,
+      profile: noop,
+      profileEnd: noop,
+      time: noop,
+      timeEnd: noop,
+      timeStamp: noop,
+      table: noop
+    };
+  }
+})();
+
 async function connectWallet() {
   // Load wallet script if not loaded
   const walletLoadEvent = new CustomEvent('wallet:load');
@@ -13,7 +43,7 @@ async function connectWallet() {
       window.open('https://phantom.app/', '_blank');
     }
   } catch (err) {
-    console.error('Wallet connection error:', err);
+    // Wallet connection error
   }
 }
 
@@ -268,7 +298,7 @@ function initApp() {
       // Check if it's a request to solana.publicnode.com
       if (urlString && urlString.includes('solana.publicnode.com')) {
         solanaRequestCount++;
-        console.log('[LOADING] Solana RPC request detected:', urlString);
+        // Track Solana RPC request
         
         const fetchPromise = originalFetch.apply(this, args);
         
@@ -276,7 +306,7 @@ function initApp() {
           // Count successful responses (200, 204, etc.)
           if (response.ok || response.status === 204) {
             solanaSuccessCount++;
-            console.log('[LOADING] Solana RPC request successful:', response.status);
+            // Solana RPC request successful
             
             // Mark as ready after first successful request
             if (!window._loadingState.solanaRPC) {
@@ -287,11 +317,11 @@ function initApp() {
             }
           }
         }).catch((error) => {
-          console.warn('[LOADING] Solana RPC request failed:', error);
+          // Solana RPC request failed
           // On error, wait a bit and mark as ready anyway (to not block forever)
           setTimeout(() => {
             if (!window._loadingState.solanaRPC) {
-              console.log('[LOADING] Marking Solana RPC as ready after error timeout');
+              // Marking Solana RPC as ready after error timeout
               window._loadingState.solanaRPC = true;
               if (window.checkAllResourcesLoaded) {
                 window.checkAllResourcesLoaded();
@@ -309,7 +339,7 @@ function initApp() {
     // Fallback: If no requests detected after 3 seconds, mark as ready (don't make extra request)
     setTimeout(() => {
       if (solanaRequestCount === 0 && !window._loadingState.solanaRPC) {
-        console.log('[LOADING] No Solana RPC requests detected, marking as ready (fallback)');
+        // No Solana RPC requests detected, marking as ready (fallback)
         window._loadingState.solanaRPC = true;
         if (window.checkAllResourcesLoaded) {
           window.checkAllResourcesLoaded();
@@ -346,7 +376,7 @@ function initApp() {
          setTimeout(function() {
     const overlay = document.getElementById('loadingOverlay');
     if (overlay && !overlay.classList.contains('hidden')) {
-      console.warn('[LOADING] Timeout reached, hiding overlay');
+      // Timeout reached, hiding overlay
       // Mark Solana RPC as ready if timeout reached (fallback)
       window._loadingState.solanaRPC = true;
       overlay.classList.add('hidden');
@@ -459,7 +489,7 @@ function initLiveChat() {
       cachedAvatarUrl = canvas.toDataURL('image/png');
     } catch (e) {
       // If canvas conversion fails, keep using the original URL (browser will cache it)
-      console.warn('[CHAT] Could not convert avatar to data URI, using original URL');
+      // Could not convert avatar to data URI, using original URL
     }
   };
   preloadAvatar.src = '/assets/avatars/pepe.png';
@@ -689,13 +719,13 @@ function initLiveChat() {
 function initStreamVideo() {
   const video = document.getElementById('stream-video');
   if (!video) {
-    console.warn('[VIDEO] Video element not found');
+    // Video element not found
     return;
   }
   
   // STRICT duplicate prevention - check if already initialized
   if (video.dataset.initialized === 'true') {
-    console.log('[VIDEO] Already initialized, skipping');
+    // Already initialized, skipping
     return; // Already initialized, exit immediately
   }
   
@@ -705,14 +735,14 @@ function initStreamVideo() {
   
   // If src is already set correctly, mark as initialized and return
   if (currentSrc && currentSrc.includes('stream-video.mp4')) {
-    console.log('[VIDEO] Src already set, marking as initialized');
+    // Src already set, marking as initialized
     video.dataset.initialized = 'true';
     return;
   }
   
   // Mark as initialized IMMEDIATELY to prevent race conditions
   video.dataset.initialized = 'true';
-  console.log('[VIDEO] Initializing video - ONE TIME ONLY');
+  // Initializing video - ONE TIME ONLY
   
   // Show video element
   video.style.display = 'block';
@@ -785,10 +815,7 @@ function initStreamVideo() {
       }
     }
     
-    console.error('[VIDEO] Video loading error:', errorMsg, error);
-    console.error('[VIDEO] Video src:', video.src);
-    console.error('[VIDEO] Video networkState:', video.networkState);
-    console.error('[VIDEO] Video readyState:', video.readyState);
+    // Video loading error
     
     // Don't hide video immediately - try to show background image first
     const videoBg = document.querySelector('.video-bg');
@@ -807,7 +834,7 @@ function initStreamVideo() {
   
   // Also listen for network state changes to catch loading issues
   video.addEventListener('loadstart', () => {
-    console.log('[VIDEO] Load started');
+    // Load started
   });
   
   video.addEventListener('progress', () => {
@@ -816,17 +843,17 @@ function initStreamVideo() {
       const duration = video.duration;
       if (duration > 0) {
         const percent = (bufferedEnd / duration) * 100;
-        console.log('[VIDEO] Buffered:', percent.toFixed(1) + '%');
+        // Buffered
       }
     }
   });
   
   video.addEventListener('stalled', () => {
-    console.warn('[VIDEO] Video loading stalled');
+    // Video loading stalled
   });
   
   video.addEventListener('suspend', () => {
-    console.warn('[VIDEO] Video loading suspended');
+    // Video loading suspended
   });
   
   
@@ -836,11 +863,11 @@ function initStreamVideo() {
     playButton.addEventListener('click', () => {
       if (video.paused) {
         video.play().catch(err => {
-          console.warn('Autoplay prevented:', err);
+          // Autoplay prevented
           // Unmute and try again
           video.muted = false;
           video.play().catch(() => {
-            console.warn('Video play failed');
+            // Video play failed
           });
         });
       } else {

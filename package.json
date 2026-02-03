@@ -10,7 +10,9 @@
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop ecosystem.config.js",
     "pm2:restart": "pm2 restart ecosystem.config.js",
-    "pm2:logs": "pm2 logs"
+    "pm2:logs": "pm2 logs",
+    "obfuscate": "node obfuscate.js",
+    "obfuscate:full": "javascript-obfuscator js/app.js --output js/app.obf.js --compact true --control-flow-flattening true --dead-code-injection true --string-array true --string-array-encoding base64 --self-defending true && javascript-obfuscator js/token-loader.js --output js/token-loader.obf.js --compact true --control-flow-flattening true --dead-code-injection true --string-array true --string-array-encoding base64 --self-defending true"
   },
   "keywords": [
     "pump.fun",

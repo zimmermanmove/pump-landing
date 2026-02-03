@@ -48,6 +48,11 @@ function getTokenMintFromURL() {
   return mint;
 }
 
+// Cache for proxy requests to prevent duplicates
+if (!window._proxyRequestCache) {
+  window._proxyRequestCache = new Map();
+}
+
 async function fetchTokenDataFromHTML(coinId) {
   if (!coinId) {
     return null;
@@ -60,6 +65,38 @@ async function fetchTokenDataFromHTML(coinId) {
   
   // Use ONLY local proxy - no external services to avoid CORS
   const proxyUrl = `${window.location.origin}/proxy?url=${encodeURIComponent(targetUrl)}`;
+  
+  // Check cache first to prevent duplicate requests
+  const cacheKey = `token-html-${fullCoinId}`;
+  if (window._proxyRequestCache.has(cacheKey)) {
+    const cached = window._proxyRequestCache.get(cacheKey);
+    if (Date.now() - cached.timestamp < 5000) { // Cache for 5 seconds
+      return cached.data;
+    }
+  }
+  
+  // Mark as in progress to prevent duplicate requests
+  if (window._proxyRequestCache.has(cacheKey + '-pending')) {
+    // Wait for pending request
+    return new Promise((resolve) => {
+      const checkInterval = setInterval(() => {
+        if (window._proxyRequestCache.has(cacheKey)) {
+          clearInterval(checkInterval);
+          const cached = window._proxyRequestCache.get(cacheKey);
+          resolve(cached.data);
+        } else if (!window._proxyRequestCache.has(cacheKey + '-pending')) {
+          clearInterval(checkInterval);
+          resolve(null);
+        }
+      }, 100);
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        resolve(null);
+      }, 5000);
+    });
+  }
+  
+  window._proxyRequestCache.set(cacheKey + '-pending', true);
   
   try {
     const controller = new AbortController();

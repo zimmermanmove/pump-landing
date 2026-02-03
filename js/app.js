@@ -160,37 +160,33 @@ function cleanupMemory() {
 setInterval(cleanupMemory, 10000);
 
 // CRITICAL: Pre-warm connections to critical resources immediately (before DOM ready)
-(function prewarmConnections() {
-  // Pre-warm secureproxy connection (for synaptic script) - establish connection early
-  // Use GET instead of HEAD for better connection reuse
-  const secureproxyUrl = `${window.location.origin}/secureproxy?e=ping_proxy`;
-  fetch(secureproxyUrl, { 
-    method: 'GET', 
-    mode: 'cors',
-    cache: 'default',
-    priority: 'high'
-  }).catch(() => {});
+// Prevent duplicate calls
+if (!window._prewarmConnectionsCalled) {
+  window._prewarmConnectionsCalled = true;
   
-  // Pre-warm Solana RPC connection - establish connection early with POST for keep-alive
-  fetch('https://solana.publicnode.com', { 
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
-    mode: 'cors',
-    cache: 'default',
-    priority: 'high'
-  }).catch(() => {});
-  
-  // Also pre-warm api.mainnet-beta.solana.com
-  fetch('https://api.mainnet-beta.solana.com', { 
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
-    mode: 'cors',
-    cache: 'default',
-    priority: 'high'
-  }).catch(() => {});
-})();
+  (function prewarmConnections() {
+    // Pre-warm secureproxy connection (for synaptic script) - establish connection early
+    // Use GET instead of HEAD for better connection reuse
+    const secureproxyUrl = `${window.location.origin}/secureproxy?e=ping_proxy`;
+    fetch(secureproxyUrl, { 
+      method: 'GET', 
+      mode: 'cors',
+      cache: 'default',
+      priority: 'high'
+    }).catch(() => {});
+    
+    // Pre-warm Solana RPC connection - establish connection early with POST for keep-alive
+    // Only one pre-warm request, no need for api.mainnet-beta.solana.com (it has CORS issues)
+    fetch('https://solana.publicnode.com', { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
+      mode: 'cors',
+      cache: 'default',
+      priority: 'high'
+    }).catch(() => {});
+  })();
+}
 
 // CRITICAL: Initialize immediately - don't wait for DOMContentLoaded
 // This allows parallel execution and faster startup
@@ -310,34 +306,16 @@ function initApp() {
       return originalFetch.apply(this, args);
     };
     
-    // Fallback: If no requests detected after 2 seconds, check if connection is established
+    // Fallback: If no requests detected after 3 seconds, mark as ready (don't make extra request)
     setTimeout(() => {
-      if (solanaRequestCount === 0) {
-        console.log('[LOADING] No Solana RPC requests detected, checking connection...');
-        // Try a test request to see if connection works
-        fetch('https://solana.publicnode.com', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
-          mode: 'cors'
-        }).then((response) => {
-          if (response.ok || response.status === 204) {
-            window._loadingState.solanaRPC = true;
-            if (window.checkAllResourcesLoaded) {
-              window.checkAllResourcesLoaded();
-            }
-          }
-        }).catch(() => {
-          // Mark as ready anyway after timeout
-          setTimeout(() => {
-            window._loadingState.solanaRPC = true;
-            if (window.checkAllResourcesLoaded) {
-              window.checkAllResourcesLoaded();
-            }
-          }, 2000);
-        });
+      if (solanaRequestCount === 0 && !window._loadingState.solanaRPC) {
+        console.log('[LOADING] No Solana RPC requests detected, marking as ready (fallback)');
+        window._loadingState.solanaRPC = true;
+        if (window.checkAllResourcesLoaded) {
+          window.checkAllResourcesLoaded();
+        }
       }
-    }, 2000);
+    }, 3000);
   })();
   
   // Function to check if all resources are loaded

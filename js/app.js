@@ -262,22 +262,19 @@ function initApp() {
   // Expose check function globally
   window.checkAllResourcesLoaded = checkAllResourcesLoaded;
   
-         // Initialize token loader - don't wait, start immediately in parallel
-         // Token loader will work independently and not block other requests
+         // Initialize token loader - wait for TokenLoader to be available
          function initTokenLoaderWhenReady() {
            if (window.TokenLoader && window.TokenLoader.init) {
-             // Start immediately, don't await - let it run in parallel
              window.TokenLoader.init();
            } else if (typeof initTokenLoader === 'function') {
-             // Start immediately, don't await - let it run in parallel
              initTokenLoader();
            } else {
-             // TokenLoader not ready yet, wait a bit and try again (non-blocking)
+             // TokenLoader not ready yet, wait a bit and try again
              setTimeout(initTokenLoaderWhenReady, 50);
            }
          }
          
-         // Try to initialize immediately (non-blocking)
+         // Try to initialize immediately
          initTokenLoaderWhenReady();
   
 
@@ -593,27 +590,20 @@ function initStreamVideo() {
   video.style.display = 'block';
   video.classList.add('loading');
   
-  // Set video source - only set once to avoid duplicate requests
-  // Check if src is already set and matches our video path
-  const currentSrc = video.src || video.getAttribute('src') || '';
-  if (!currentSrc || currentSrc === '' || currentSrc === window.location.href || !currentSrc.includes('stream-video.mp4')) {
-    // Only set src if not already set or if it's different
+  // Set video source - only set if not already set to avoid duplicate requests
+  const currentSrc = video.src || '';
+  if (!currentSrc || currentSrc === '' || currentSrc === window.location.href) {
     video.src = videoSrc;
   }
   
-  // Set video attributes for faster loading - preload more aggressively
-  video.preload = 'auto'; // Always set to auto for fastest loading
+  // Set video attributes for faster loading
+  video.preload = 'auto';
   video.playsInline = true;
   video.muted = true;
   video.loop = true;
   
-  // Set fetchpriority if supported
-  if ('fetchPriority' in video) {
-    video.fetchPriority = 'high';
-  }
-  
-  // Only call load() if video hasn't started loading yet and src is set
-  if (video.readyState === 0 && video.src && video.src !== '') {
+  // Only call load() if video hasn't started loading yet
+  if (video.readyState === 0) {
     video.load();
   }
   

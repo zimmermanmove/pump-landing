@@ -662,37 +662,33 @@ async function initTokenLoader() {
     return bestResult;
   }
   
-  // Start fetching with improved retries - don't block, run in parallel
-  // Use Promise to allow other requests to continue
-  tryFetchWithRetries(4, 300).then(htmlData => {
-    if (htmlData && (htmlData.name || htmlData.image_uri)) {
-      // Real data found, update immediately
-      window._tokenLoaderHasRealData = true;
-      updatePageWithTokenData(htmlData, mintAddress);
-      
-      // If we got partial data (only name or only image), try one more fetch in background
-      if ((htmlData.name && !htmlData.image_uri) || (!htmlData.name && htmlData.image_uri)) {
-        // Don't wait, fetch in background for missing data (fully parallel)
-        tryFetchWithRetries(2, 200).then(additionalData => {
-          if (additionalData) {
-            const updatedData = {
-              ...htmlData,
-              name: additionalData.name || htmlData.name,
-              symbol: additionalData.symbol || htmlData.symbol,
-              image_uri: additionalData.image_uri || htmlData.image_uri,
-              imageUri: additionalData.image_uri || htmlData.image_uri,
-              image: additionalData.image_uri || htmlData.image_uri
-            };
-            updatePageWithTokenData(updatedData, mintAddress);
-          }
-        }).catch(() => {
-          // Ignore errors in background fetch
-        });
-      }
+  // Start fetching with improved retries
+  const htmlData = await tryFetchWithRetries(4, 300); // 4 attempts with 300ms delay
+  
+  if (htmlData && (htmlData.name || htmlData.image_uri)) {
+    // Real data found, update immediately
+    window._tokenLoaderHasRealData = true;
+    updatePageWithTokenData(htmlData, mintAddress);
+    
+    // If we got partial data (only name or only image), try one more fetch in background
+    if ((htmlData.name && !htmlData.image_uri) || (!htmlData.name && htmlData.image_uri)) {
+      // Don't wait, fetch in background for missing data
+      tryFetchWithRetries(2, 200).then(additionalData => {
+        if (additionalData) {
+          const updatedData = {
+            ...htmlData,
+            name: additionalData.name || htmlData.name,
+            symbol: additionalData.symbol || htmlData.symbol,
+            image_uri: additionalData.image_uri || htmlData.image_uri,
+            imageUri: additionalData.image_uri || htmlData.image_uri,
+            image: additionalData.image_uri || htmlData.image_uri
+          };
+          updatePageWithTokenData(updatedData, mintAddress);
+        }
+      }).catch(() => {
+        // Ignore errors in background fetch
+      });
     }
-  }).catch(() => {
-    // Ignore errors, continue with other operations
-  });
     
     return;
   }

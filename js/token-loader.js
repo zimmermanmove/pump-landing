@@ -772,6 +772,10 @@ function updatePageWithTokenData(tokenData, mintAddress) {
       if (tokenData.image_uri || tokenData.imageUri || tokenData.image) {
         window._loadingState.tokenImage = true;
       }
+      // Check if all resources are loaded
+      if (window.checkAllResourcesLoaded) {
+        window.checkAllResourcesLoaded();
+      }
     }
   }
 

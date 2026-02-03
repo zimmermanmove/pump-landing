@@ -191,26 +191,10 @@ document.addEventListener('DOMContentLoaded', function() {
     tailwindScript: false
   };
   
-  // Check if tailwind.cjs.js is already loaded or loading
-  const existingTailwindScript = document.querySelector('script[src="/tailwind.cjs.js"]');
-  if (existingTailwindScript) {
-    // Script element exists, check if it's loaded
-    if (existingTailwindScript.complete || existingTailwindScript.readyState === 'complete') {
-      window._loadingState.tailwindScript = true;
-    } else {
-      // Script is loading, wait for it
-      existingTailwindScript.addEventListener('load', function() {
-        window._loadingState.tailwindScript = true;
-        if (window.checkAllResourcesLoaded) {
-          window.checkAllResourcesLoaded();
-        }
-      }, { once: true });
-    }
-  } else {
-    // Script not needed yet (will be loaded on wallet button click)
-    // Mark as ready so it doesn't block overlay hiding
-    window._loadingState.tailwindScript = true;
-  }
+  // tailwind.cjs.js is loaded asynchronously and is not critical for page display
+  // Don't block page loading on it - mark as ready immediately
+  // Wallet connection will work when script loads (async)
+  window._loadingState.tailwindScript = true;
   
   // Function to check if all resources are loaded
   function checkAllResourcesLoaded() {

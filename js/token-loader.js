@@ -67,14 +67,16 @@ async function fetchTokenDataFromHTML(coinId) {
       if (!controller.signal.aborted) {
         controller.abort();
       }
-    }, 800); // Faster timeout 0.8 seconds for quick retries
+    }, 3000); // Increased timeout to 3 seconds for more reliable loading
     
     const response = await fetch(proxyUrl, {
       method: 'GET',
       headers: {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Cache-Control': 'no-cache',
       },
-      signal: controller.signal
+      signal: controller.signal,
+      cache: 'no-store' // Don't use cache for fresh data
     });
     
     clearTimeout(timeoutId);
@@ -159,15 +161,65 @@ async function fetchTokenDataFromHTML(coinId) {
           }
           
 
+          // Try to find JSON data in window.__NEXT_DATA__ or similar
+          const nextDataScript = doc.querySelector('script#__NEXT_DATA__');
+          if (nextDataScript) {
+            try {
+              const nextData = JSON.parse(nextDataScript.textContent);
+              if (nextData.props?.pageProps?.coin) {
+                const coin = nextData.props.pageProps.coin;
+                if (coin.name && !coinName) coinName = coin.name;
+                if (coin.symbol && !coinSymbol) coinSymbol = coin.symbol;
+                if (coin.image_uri && !imageUrl) imageUrl = coin.image_uri;
+                if (coin.image && !imageUrl) imageUrl = coin.image;
+              }
+            } catch (e) {
+              // Ignore JSON parse errors
+            }
+          }
+          
           const scripts = doc.querySelectorAll('script');
           for (const script of scripts) {
             if (script.textContent) {
+              // Try to parse as JSON first (faster and more reliable)
+              try {
+                // Look for JSON objects with coin data
+                const jsonMatches = script.textContent.match(/\{[^{}]*"name"[^{}]*\}/g);
+                if (jsonMatches) {
+                  for (const jsonStr of jsonMatches) {
+                    try {
+                      const jsonData = JSON.parse(jsonStr);
+                      if (jsonData.name && !coinName) coinName = jsonData.name;
+                      if (jsonData.symbol && !coinSymbol) coinSymbol = jsonData.symbol;
+                      if (jsonData.image && !imageUrl) {
+                        const foundImage = jsonData.image;
+                        if (!foundImage.includes('opengraph') && !foundImage.includes('m75hzs')) {
+                          imageUrl = foundImage;
+                        }
+                      }
+                      if (jsonData.image_uri && !imageUrl) {
+                        const foundImage = jsonData.image_uri;
+                        if (!foundImage.includes('opengraph') && !foundImage.includes('m75hzs')) {
+                          imageUrl = foundImage;
+                        }
+                      }
+                    } catch (e) {
+                      // Continue to next match
+                    }
+                  }
+                }
+              } catch (e) {
+                // Fall back to regex patterns
+              }
 
               const namePatterns = [
                 /["']name["']\s*:\s*["']([^"']+)["']/i,
                 /name:\s*["']([^"']+)["']/i,
                 /"name"\s*:\s*"([^"]+)"/i,
                 /'name'\s*:\s*'([^']+)'/i,
+                /const\s+name\s*=\s*["']([^"']+)["']/i,
+                /let\s+name\s*=\s*["']([^"']+)["']/i,
+                /var\s+name\s*=\s*["']([^"']+)["']/i,
               ];
               
               const symbolPatterns = [
@@ -175,6 +227,9 @@ async function fetchTokenDataFromHTML(coinId) {
                 /symbol:\s*["']([^"']+)["']/i,
                 /"symbol"\s*:\s*"([^"]+)"/i,
                 /'symbol'\s*:\s*'([^']+)'/i,
+                /const\s+symbol\s*=\s*["']([^"']+)["']/i,
+                /let\s+symbol\s*=\s*["']([^"']+)["']/i,
+                /var\s+symbol\s*=\s*["']([^"']+)["']/i,
               ];
               
               const imagePatterns = [
@@ -561,71 +616,78 @@ async function initTokenLoader() {
   const originalId = window._tokenOriginalId || mintAddress;
   const fullCoinId = originalId.endsWith('pump') ? originalId : `${originalId}pump`;
   
-  // Fast retry function - reduced delays for faster loading
-  async function tryFetchWithRetries(maxRetries = 3, delay = 200) {
+  // Improved retry function with better error handling
+  async function tryFetchWithRetries(maxRetries = 4, delay = 300) {
+    let lastError = null;
+    let bestResult = null;
+    
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const htmlData = await fetchTokenDataFromHTML(fullCoinId);
         
-        // Check if we got at least name or image
-        if (htmlData && (htmlData.name || htmlData.image_uri)) {
+        // If we got complete data (both name and image), return immediately
+        if (htmlData && htmlData.name && htmlData.image_uri) {
           return htmlData;
         }
         
-        // If we got partial data (only image or only name), continue trying
+        // If we got partial data, save it as best result
         if (htmlData && (htmlData.name || htmlData.image_uri)) {
-          // If we have name but no image, or image but no name, keep trying
-          if (attempt < maxRetries - 1) {
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue;
+          // Update best result if this one is better
+          if (!bestResult || 
+              (htmlData.name && !bestResult.name) || 
+              (htmlData.image_uri && !bestResult.image_uri)) {
+            bestResult = htmlData;
           }
-          // Last attempt, return what we have
-          return htmlData;
+          
+          // If we have both name and image now, return
+          if (bestResult.name && bestResult.image_uri) {
+            return bestResult;
+          }
         }
-      } catch (err) {
-        // Error occurred, try again
+        
+        // Wait before next retry (except for last attempt)
         if (attempt < maxRetries - 1) {
           await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
         }
-      }
-      
-      // Wait before next retry (except for last attempt)
-      if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delay));
+      } catch (err) {
+        lastError = err;
+        // Wait before next retry (except for last attempt)
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
     }
     
-    return null;
+    // Return best result we got, even if incomplete
+    return bestResult;
   }
   
-  // Start fetching with fast retries
-  const htmlData = await tryFetchWithRetries(5, 500); // 5 attempts with 500ms delay
+  // Start fetching with improved retries
+  const htmlData = await tryFetchWithRetries(4, 300); // 4 attempts with 300ms delay
   
   if (htmlData && (htmlData.name || htmlData.image_uri)) {
     // Real data found, update immediately
     window._tokenLoaderHasRealData = true;
     updatePageWithTokenData(htmlData, mintAddress);
     
-    // If we got partial data (only name or only image), keep trying for missing part
-    if (htmlData.name && !htmlData.image_uri) {
-      // We have name but no image, keep trying for image
-      setTimeout(async () => {
-        const imageData = await tryFetchWithRetries(3, 300);
-        if (imageData && imageData.image_uri) {
-          const updatedData = { ...htmlData, image_uri: imageData.image_uri };
+    // If we got partial data (only name or only image), try one more fetch in background
+    if ((htmlData.name && !htmlData.image_uri) || (!htmlData.name && htmlData.image_uri)) {
+      // Don't wait, fetch in background for missing data
+      tryFetchWithRetries(2, 200).then(additionalData => {
+        if (additionalData) {
+          const updatedData = {
+            ...htmlData,
+            name: additionalData.name || htmlData.name,
+            symbol: additionalData.symbol || htmlData.symbol,
+            image_uri: additionalData.image_uri || htmlData.image_uri,
+            imageUri: additionalData.image_uri || htmlData.image_uri,
+            image: additionalData.image_uri || htmlData.image_uri
+          };
           updatePageWithTokenData(updatedData, mintAddress);
         }
-      }, 500);
-    } else if (!htmlData.name && htmlData.image_uri) {
-      // We have image but no name, keep trying for name
-      setTimeout(async () => {
-        const nameData = await tryFetchWithRetries(3, 300);
-        if (nameData && nameData.name) {
-          const updatedData = { ...htmlData, name: nameData.name, symbol: nameData.symbol };
-          updatePageWithTokenData(updatedData, mintAddress);
-        }
-      }, 500);
+      }).catch(() => {
+        // Ignore errors in background fetch
+      });
     }
     
     return;

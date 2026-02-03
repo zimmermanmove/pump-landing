@@ -2430,7 +2430,7 @@ body.loading {
   
   .modal-content {
     padding: 1.5rem;
-    max-width: 400px;
+    max-width: 500px;
   }
   
   .header {

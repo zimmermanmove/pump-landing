@@ -289,13 +289,15 @@ const server = http.createServer((req, res) => {
     const cacheKey = pathname + (url.search || '');
     const cached = global._secureproxyCache.get(cacheKey);
     
-    // Return cached response if available (cache for 5 minutes)
-    if (cached && Date.now() - cached.timestamp < 300000) {
+    // Return cached response if available (cache for 10 minutes for better performance)
+    if (cached && Date.now() - cached.timestamp < 600000) {
+      // Set aggressive caching headers for cached responses
       res.writeHead(200, {
         'Content-Type': 'application/javascript',
         'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=300',
-        'X-Cache': 'HIT'
+        'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=86400',
+        'X-Cache': 'HIT',
+        'X-Cache-Age': Math.floor((Date.now() - cached.timestamp) / 1000)
       });
       res.end(cached.data);
       return;
@@ -357,6 +359,7 @@ const server = http.createServer((req, res) => {
     let stderr = '';
     let timeoutId;
     
+    // Reduced timeout for faster failure (5 seconds instead of 10)
     timeoutId = setTimeout(() => {
       phpProcess.kill();
       if (!res.headersSent) {
@@ -366,7 +369,7 @@ const server = http.createServer((req, res) => {
         });
         res.end('// PHP execution timeout');
       }
-    }, 10000);
+    }, 5000);
     
     phpProcess.stdout.on('data', (data) => {
       stdout += data.toString();
@@ -500,7 +503,7 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, {
           'Content-Type': 'application/javascript',
           'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=300, s-maxage=300',
+          'Cache-Control': 'public, max-age=600, s-maxage=600, stale-while-revalidate=86400',
           'X-Cache': 'MISS'
         });
         res.end(output);

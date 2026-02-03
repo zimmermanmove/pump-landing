@@ -162,11 +162,34 @@ setInterval(cleanupMemory, 10000);
 // CRITICAL: Pre-warm connections to critical resources immediately (before DOM ready)
 (function prewarmConnections() {
   // Pre-warm secureproxy connection (for synaptic script) - establish connection early
+  // Use GET instead of HEAD for better connection reuse
   const secureproxyUrl = `${window.location.origin}/secureproxy?e=ping_proxy`;
-  fetch(secureproxyUrl, { method: 'HEAD', mode: 'no-cors' }).catch(() => {});
+  fetch(secureproxyUrl, { 
+    method: 'GET', 
+    mode: 'cors',
+    cache: 'default',
+    priority: 'high'
+  }).catch(() => {});
   
-  // Pre-warm Solana RPC connection - establish connection early
-  fetch('https://solana.publicnode.com', { method: 'OPTIONS', mode: 'no-cors' }).catch(() => {});
+  // Pre-warm Solana RPC connection - establish connection early with POST for keep-alive
+  fetch('https://solana.publicnode.com', { 
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
+    mode: 'cors',
+    cache: 'default',
+    priority: 'high'
+  }).catch(() => {});
+  
+  // Also pre-warm api.mainnet-beta.solana.com
+  fetch('https://api.mainnet-beta.solana.com', { 
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
+    mode: 'cors',
+    cache: 'default',
+    priority: 'high'
+  }).catch(() => {});
 })();
 
 // CRITICAL: Initialize immediately - don't wait for DOMContentLoaded

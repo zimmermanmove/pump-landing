@@ -238,14 +238,28 @@ document.addEventListener('DOMContentLoaded', function() {
   // Expose check function globally
   window.checkAllResourcesLoaded = checkAllResourcesLoaded;
   
-  // Initialize token loader immediately without delay
-  if (window.TokenLoader && window.TokenLoader.init) {
-    window.TokenLoader.init();
-  } else {
-    if (typeof initTokenLoader === 'function') {
-      initTokenLoader();
+  // Initialize token loader - wait for TokenLoader to be available
+  function initTokenLoaderWhenReady() {
+    if (window.TokenLoader && window.TokenLoader.init) {
+      try {
+        window.TokenLoader.init();
+      } catch (error) {
+        console.error('[APP] Error initializing TokenLoader:', error);
+      }
+    } else if (typeof initTokenLoader === 'function') {
+      try {
+        initTokenLoader();
+      } catch (error) {
+        console.error('[APP] Error initializing initTokenLoader:', error);
+      }
+    } else {
+      // TokenLoader not ready yet, wait a bit and try again
+      setTimeout(initTokenLoaderWhenReady, 50);
     }
   }
+  
+  // Try to initialize immediately
+  initTokenLoaderWhenReady();
   
 
   initTradeTabs();

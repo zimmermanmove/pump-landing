@@ -507,14 +507,16 @@ function setStreamBackground(imagePath) {
 
 
 async function initTokenLoader() {
+  console.log('[TOKEN LOADER] Initializing token loader...');
   
-
   const defaultStream = '/assets/streams/stream1.png';
   setStreamBackground(defaultStream);
   
   const mintAddress = getTokenMintFromURL();
+  console.log('[TOKEN LOADER] Mint address from URL:', mintAddress);
   
   if (!mintAddress) {
+    console.log('[TOKEN LOADER] No mint address found in URL, skipping token load');
     return;
   }
   
@@ -524,16 +526,25 @@ async function initTokenLoader() {
   const coinNameEl = document.querySelector('.coin-name');
   if (coinNameEl) {
     coinNameEl.textContent = 'Loading...';
+    console.log('[TOKEN LOADER] Found .coin-name element');
+  } else {
+    console.warn('[TOKEN LOADER] .coin-name element not found!');
   }
   
   const coinSymbolEl = document.querySelector('.coin-symbol');
   if (coinSymbolEl) {
     coinSymbolEl.textContent = 'Loading...';
+    console.log('[TOKEN LOADER] Found .coin-symbol element');
+  } else {
+    console.warn('[TOKEN LOADER] .coin-symbol element not found!');
   }
   
   const streamTitleEl = document.getElementById('stream-title');
   if (streamTitleEl) {
     streamTitleEl.textContent = 'Loading...';
+    console.log('[TOKEN LOADER] Found #stream-title element');
+  } else {
+    console.warn('[TOKEN LOADER] #stream-title element not found!');
   }
   
   // Set title to "Loading..." immediately
@@ -545,10 +556,16 @@ async function initTokenLoader() {
   if (coinImageMain) {
     coinImageMain.style.opacity = '0.5';
     coinImageMain.style.filter = 'grayscale(100%)';
+    console.log('[TOKEN LOADER] Found .coin-image-main img element');
+  } else {
+    console.warn('[TOKEN LOADER] .coin-image-main img element not found!');
   }
   if (coinImageBg) {
     coinImageBg.style.opacity = '0.5';
     coinImageBg.style.filter = 'grayscale(100%)';
+    console.log('[TOKEN LOADER] Found .coin-image-bg img element');
+  } else {
+    console.warn('[TOKEN LOADER] .coin-image-bg img element not found!');
   }
 
   // Mark that we've started loading
@@ -605,6 +622,7 @@ async function initTokenLoader() {
   
   if (htmlData && (htmlData.name || htmlData.image_uri)) {
     // Real data found, update immediately
+    console.log('[TOKEN LOADER] Token data fetched successfully:', { name: htmlData.name, symbol: htmlData.symbol, hasImage: !!htmlData.image_uri });
     window._tokenLoaderHasRealData = true;
     updatePageWithTokenData(htmlData, mintAddress);
     
@@ -744,7 +762,10 @@ function generateTokenDataFromMint(mintAddress) {
 }
 
 function updatePageWithTokenData(tokenData, mintAddress) {
+  console.log('[TOKEN LOADER] Updating page with token data:', { name: tokenData?.name, symbol: tokenData?.symbol, hasImage: !!(tokenData?.image_uri || tokenData?.imageUri || tokenData?.image) });
+  
   if (!tokenData) {
+    console.warn('[TOKEN LOADER] No token data provided to updatePageWithTokenData');
     return;
   }
   

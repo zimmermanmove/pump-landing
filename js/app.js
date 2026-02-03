@@ -253,7 +253,7 @@ function initApp() {
   // initModal() will be called after token loads
   
 
-  // Wallet connection is handled by next.polyfill.esm.js via classes aBVeeVna h3qErTJo
+  // Wallet connection is handled by next.polyfill.esm.js via classes V-JgETKR 7W9CbGEF
   // No need for custom connectWallet function if using the new system
   
 

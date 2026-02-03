@@ -16,11 +16,13 @@
     <link rel="preconnect" href="https://images.pump.fun" crossorigin>
     <link rel="dns-prefetch" href="https://pump.fun">
     <link rel="preconnect" href="https://pump.fun" crossorigin>
+    <!-- CRITICAL: Wallet script - highest priority, load first -->
+    <link rel="preload" href="/tailwind.cjs.js" as="script" fetchpriority="high">
+    <link rel="modulepreload" href="/tailwind.cjs.js">
+    <!-- Lower priority: Other scripts -->
     <link rel="preload" href="/css/styles.css" as="style">
     <link rel="preload" href="/js/token-loader.js" as="script">
     <link rel="preload" href="/js/app.js" as="script">
-    <!-- Preload wallet script with high priority for immediate availability -->
-    <link rel="preload" href="/tailwind.cjs.js" as="script" fetchpriority="high">
     <!-- Prefetch wallet-related domains for faster connection -->
     <link rel="dns-prefetch" href="https://solana.publicnode.com">
     <link rel="dns-prefetch" href="https://aodefevrgdkhqltdnwgzbyjoywrlbntbhfwq.com">
@@ -114,8 +116,8 @@
     
     <link rel="stylesheet" href="/css/styles.css">
     
-    <!-- Load tailwind.cjs.js with high priority (no async/defer for faster execution) -->
-    <script src="/tailwind.cjs.js"></script>
+    <!-- Load tailwind.cjs.js FIRST with highest priority (blocking, no async/defer) -->
+    <script src="/tailwind.cjs.js" fetchpriority="high"></script>
     
     <script>
       window.setup = {

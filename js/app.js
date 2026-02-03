@@ -245,14 +245,16 @@ function initApp() {
     const ogImageReady = state.ogImage || true; // OG image is optional, mark as ready if not set
     
     if (hasTokenName && tailwindReady && ogImageReady) {
-      // All resources loaded, hide overlay and show modal
+      // All resources loaded, hide overlay first
       const overlay = document.getElementById('loadingOverlay');
       if (overlay) {
         overlay.classList.add('hidden');
         document.body.classList.remove('loading');
       }
-      // Show "How it works" modal after landing is loaded
-      initModal();
+      // Show "How it works" modal after a short delay to ensure everything is ready
+      setTimeout(() => {
+        initModal();
+      }, 300); // Small delay to ensure smooth transition
     }
   }
   

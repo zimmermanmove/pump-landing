@@ -132,14 +132,18 @@ body.loading {
   pointer-events: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  margin: 0 auto;
 }
 
 @media (max-width: 640px) {
   .modal-content {
     width: calc(100% - 2rem);
-    max-width: 100%;
+    max-width: calc(100% - 2rem);
     padding: 1.5rem;
     gap: 0.875rem;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
   }
 }
 

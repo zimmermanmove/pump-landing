@@ -113,7 +113,7 @@ body.loading {
   top: 50%;
   z-index: 999;
   display: grid;
-  width: 460px;
+  width: 480px;
   max-width: 500px;
   grid-template-columns: 1fr;
   grid-template-rows: auto;
@@ -133,7 +133,7 @@ body.loading {
   background-color: rgb(17, 17, 19);
   box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px;
   transform: translate(-50%, -50%);
-  transform-origin: 230px 204px;
+  transform-origin: 240px 204px;
   transform-box: view-box;
   transform-style: flat;
   animation: enter 0.15s ease;
@@ -194,7 +194,7 @@ body.loading {
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .modal-content {
-    width: 460px;
+    width: 480px;
     padding: 1rem;
     max-width: 500px;
   }
@@ -202,7 +202,7 @@ body.loading {
 
 @media (min-width: 1025px) {
   .modal-content {
-    width: 460px;
+    width: 480px;
     max-width: 500px;
     padding: 24px;
   }
@@ -2531,7 +2531,7 @@ body.loading {
   }
   
   .modal-content {
-    width: 460px;
+    width: 480px;
     padding: 1.5rem;
     max-width: 500px;
   }
@@ -2575,7 +2575,7 @@ body.loading {
   }
   
   .modal-content {
-    width: 460px;
+    width: 480px;
     padding: 1.5rem;
     max-width: 500px;
   }

@@ -90,7 +90,7 @@ body.loading {
   position: fixed;
   inset: 0;
   z-index: 10000; /* Above loading overlay (9999) */
-  display: none; /* Hidden by default - show only when needed */
+  display: none; /* Hidden until landing is loaded */
   align-items: center;
   justify-content: center;
   padding: 1rem;

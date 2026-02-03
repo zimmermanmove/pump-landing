@@ -245,13 +245,14 @@ function initApp() {
     const ogImageReady = state.ogImage || true; // OG image is optional, mark as ready if not set
     
     if (hasTokenName && tailwindReady && ogImageReady) {
-      // All resources loaded, hide overlay
+      // All resources loaded, hide overlay and show modal
       const overlay = document.getElementById('loadingOverlay');
       if (overlay) {
         overlay.classList.add('hidden');
         document.body.classList.remove('loading');
       }
-      // Don't show "How it works" modal automatically - user will click button
+      // Show "How it works" modal after landing is loaded
+      initModal();
     }
   }
   
@@ -262,7 +263,8 @@ function initApp() {
       console.warn('[LOADING] Timeout reached, hiding overlay');
       overlay.classList.add('hidden');
       document.body.classList.remove('loading');
-      // Don't show modal automatically
+      // Show modal even if token not loaded (fallback)
+      initModal();
     }
   }, 3000);
   

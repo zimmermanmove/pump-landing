@@ -108,14 +108,12 @@ body.loading {
   top: 50%;
   z-index: 999;
   display: grid;
-  width: 100%;
+  width: 500px;
   max-width: 500px;
   max-height: 100dvh;
   gap: 1rem;
   border: 1px solid rgb(226, 232, 240);
-  padding: 1.5rem;
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
+  padding: 24px;
   overflow: auto;
   text-align: center;
   color: rgb(255, 255, 255);
@@ -129,6 +127,14 @@ body.loading {
   pointer-events: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+@media (max-width: 640px) {
+  .modal-content {
+    width: calc(100% - 2rem);
+    max-width: 100%;
+    padding: 1.5rem;
+  }
 }
 
 @media (min-width: 640px) {

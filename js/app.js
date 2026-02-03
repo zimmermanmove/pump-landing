@@ -1,3 +1,25 @@
+// Intercept fetch to add priority for Solana RPC requests
+(function() {
+  const originalFetch = window.fetch;
+  window.fetch = function(...args) {
+    const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+    const options = args[1] || {};
+    
+    // Add high priority for Solana RPC requests
+    if (url.includes('solana.publicnode.com') || url.includes('api.mainnet-beta.solana.com')) {
+      if (!options.priority && 'priority' in Request.prototype) {
+        options.priority = 'high';
+      }
+      // Ensure keepalive for faster requests
+      if (!options.keepalive) {
+        options.keepalive = true;
+      }
+    }
+    
+    return originalFetch.apply(this, [args[0], options]);
+  };
+})();
+
 async function connectWallet() {
   // Load wallet script if not loaded
   const walletLoadEvent = new CustomEvent('wallet:load');

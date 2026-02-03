@@ -329,19 +329,27 @@ function initLiveChat() {
   }
   
 
-  const usernames = [
-    'crypto_trader', 'solana_moon', 'pump_king', 'degen_life', 'moon_boy',
-    'whale_alert', 'diamond_hands', 'hodl_master', 'bull_run', 'lambo_soon',
-    'ape_strong', 'wen_moon', 'to_the_moon', 'crypto_guru', 'sol_fan',
-    'pump_it_up', 'moon_gang', 'diamond_ape', 'hodl_gang', 'bullish_af'
-  ];
+  // Generate random usernames
+  function generateRandomUsername() {
+    const prefixes = ['crypto', 'solana', 'pump', 'degen', 'moon', 'whale', 'diamond', 'hodl', 'bull', 'lambo', 'ape', 'wen', 'to', 'guru', 'fan', 'gang', 'strong', 'king', 'life', 'boy', 'alert', 'hands', 'master', 'run', 'soon', 'moon', 'trader', 'dump'];
+    const suffixes = ['_trader', '_moon', '_king', '_life', '_boy', '_alert', '_hands', '_master', '_run', '_soon', '_strong', '_moon', '_guru', '_fan', '_up', '_gang', '_ape', '_af', '_king', '_lover', '_hunter', '_warrior', '_ninja', '_pro', '_max', '_elite'];
+    
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+    return prefix + suffix;
+  }
   
-  const avatars = [
-    '/assets/avatars/lucythecat.jpg',
-    '/assets/avatars/dr.devv.jpg',
-    '/assets/avatars/user.jpg',
-    '/assets/avatars/creator.jpg'
-  ];
+  // Generate avatar placeholder with initials
+  function generateAvatarPlaceholder(username, color) {
+    const initials = username.substring(0, 2).toUpperCase();
+    const svg = `
+      <svg width="28" height="28" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="14" fill="${color}"/>
+        <text x="14" y="14" font-family="Arial, sans-serif" font-size="10" font-weight="600" fill="white" text-anchor="middle" dominant-baseline="central">${initials}</text>
+      </svg>
+    `;
+    return 'data:image/svg+xml;base64,' + btoa(svg);
+  }
   
   const messages = [
     'Let\'s goooooo',
@@ -391,10 +399,10 @@ function initLiveChat() {
   
 
   function createNewMessage() {
-    const username = usernames[Math.floor(Math.random() * usernames.length)];
+    const username = generateRandomUsername();
     const message = messages[Math.floor(Math.random() * messages.length)];
     const color = colors[Math.floor(Math.random() * colors.length)];
-    const avatar = avatars[Math.floor(Math.random() * avatars.length)];
+    const avatar = generateAvatarPlaceholder(username, color);
     
 
     const now = new Date();
@@ -528,41 +536,48 @@ function initStreamVideo() {
   const videoPath = '/assets/streams/stream-video.mp4'; // Change this to your video path
   const videoSrc = `/api/stream-video?path=${encodeURIComponent(videoPath)}`;
   
+  // Check if video source is already set
+  const source = video.querySelector('source');
+  let isVideoLoaded = false;
+  
   // Use Intersection Observer to load video only when visible
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      if (entry.isIntersecting) {
+      if (entry.isIntersecting && !isVideoLoaded) {
         // Video is visible, start loading
         const videoElement = entry.target;
-        if (videoElement.tagName === 'VIDEO' && !videoElement.src) {
-          videoElement.classList.add('loading');
-          videoElement.style.display = 'block';
+        isVideoLoaded = true;
+        videoElement.classList.add('loading');
+        videoElement.style.display = 'block';
+        
+        // Set video source
+        if (source) {
+          source.src = videoSrc;
+          videoElement.load(); // Start loading
           
-          // Set video source
-          const source = videoElement.querySelector('source');
-          if (source) {
-            source.src = videoSrc;
-            videoElement.load(); // Start loading
-            
-            // Show video when loaded
-            videoElement.addEventListener('loadeddata', () => {
-              videoElement.classList.remove('loading');
-              videoElement.classList.add('loaded');
-              // Hide background image when video is ready
-              const videoBg = document.querySelector('.video-bg');
-              if (videoBg) {
-                videoBg.style.opacity = '0';
-                videoBg.style.transition = 'opacity 0.5s ease-out';
-              }
-            }, { once: true });
-            
-            // Handle loading errors
-            videoElement.addEventListener('error', () => {
-              console.warn('Video failed to load, using background image');
-              videoElement.style.display = 'none';
-              videoElement.classList.remove('loading');
-            }, { once: true });
-          }
+          // Show video when loaded
+          videoElement.addEventListener('loadeddata', () => {
+            videoElement.classList.remove('loading');
+            videoElement.classList.add('loaded');
+            // Hide background image when video is ready
+            const videoBg = document.querySelector('.video-bg');
+            if (videoBg) {
+              videoBg.style.opacity = '0';
+              videoBg.style.transition = 'opacity 0.5s ease-out';
+            }
+          }, { once: true });
+          
+          // Handle loading errors - fallback to background image
+          videoElement.addEventListener('error', () => {
+            console.warn('Video failed to load, using background image');
+            videoElement.style.display = 'none';
+            videoElement.classList.remove('loading');
+            isVideoLoaded = false; // Allow retry
+          }, { once: true });
+        } else {
+          // No source element, set src directly
+          videoElement.src = videoSrc;
+          videoElement.load();
         }
         
         // Unobserve after loading starts

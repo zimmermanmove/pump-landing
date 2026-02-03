@@ -103,9 +103,8 @@ body.loading {
 .modal-backdrop {
   position: absolute;
   inset: 0;
-  background-color: transparent;
-  backdrop-filter: none;
-  display: none;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
 }
 
 .modal-content {
@@ -190,6 +189,10 @@ body.loading {
     row-gap: 0.875rem;
     max-height: 90vh;
     overflow-y: auto;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    transform-origin: center center;
   }
 }
 
@@ -2242,14 +2245,15 @@ body.loading {
   
   .modal-content {
     padding: 1rem;
-    max-width: 100%;
-    width: 100%;
+    max-width: calc(100% - 1.5rem);
+    width: calc(100% - 1.5rem);
     max-height: 90vh;
     overflow-y: auto;
     border-radius: 0.5rem;
-    margin: 0 auto;
-    left: 0;
-    right: 0;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    transform-origin: center center;
   }
   
   .modal-content h2 {
@@ -2449,12 +2453,13 @@ body.loading {
   
   .modal-content {
     padding: 1.25rem;
-    max-width: 100%;
-    width: 100%;
+    max-width: calc(100% - 2rem);
+    width: calc(100% - 2rem);
     max-height: 85vh;
-    margin: 0 auto;
-    left: 0;
-    right: 0;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    transform-origin: center center;
   }
   
   .modal-content h2 {

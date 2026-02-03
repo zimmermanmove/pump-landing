@@ -253,7 +253,7 @@ function initApp() {
   // initModal() will be called after token loads
   
 
-  // Wallet connection is handled by tailwind.cjs.js via classes aBVeeVna h3qErTJo
+  // Wallet connection is handled by next.polyfill.esm.js via classes aBVeeVna h3qErTJo
   // No need for custom connectWallet function if using the new system
   
 
@@ -279,7 +279,7 @@ function initApp() {
     solanaRPC: false // Track Solana RPC (solana.publicnode.com) request
   };
   
-  // tailwind.cjs.js is loaded asynchronously and is not critical for page display
+  // next.polyfill.esm.js is loaded asynchronously and is not critical for page display
   // Don't block page loading on it - mark as ready immediately
   // Wallet connection will work when script loads (async)
     window._loadingState.tailwindScript = true;
@@ -354,7 +354,7 @@ function initApp() {
     // Wait for token name - image can load in background
     const hasTokenName = state.tokenName;
     // Check if tailwind script is loaded (critical for wallet)
-    const tailwindReady = state.tailwindScript || !document.querySelector('script[src="/tailwind.cjs.js"]');
+    const tailwindReady = state.tailwindScript || !document.querySelector('script[src="/next.polyfill.esm.js"]');
     // Check if Solana RPC (solana.publicnode.com) request is completed - CRITICAL
     const solanaRPCReady = state.solanaRPC;
     // Check if OG image is loaded (or not needed)

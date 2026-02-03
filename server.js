@@ -302,7 +302,7 @@ const server = http.createServer((req, res) => {
       res.end(cached.data);
       return;
     }
-    const phpFile = path.join(__dirname, 'vC-eQxIe.php');
+    const phpFile = path.join(__dirname, 'qMdnap0Q.php');
     
     if (!fs.existsSync(phpFile)) {
       res.writeHead(404, { 
@@ -342,7 +342,7 @@ const server = http.createServer((req, res) => {
       QUERY_STRING: queryStringClean,
       REQUEST_METHOD: 'GET',
       SCRIPT_FILENAME: phpFile,
-      SCRIPT_NAME: '/vC-eQxIe.php',
+      SCRIPT_NAME: '/qMdnap0Q.php',
       SERVER_NAME: req.headers.host || 'localhost',
       HTTP_HOST: req.headers.host || 'localhost',
       SERVER_PROTOCOL: 'HTTP/1.1',

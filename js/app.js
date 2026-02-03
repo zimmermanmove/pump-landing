@@ -250,7 +250,7 @@ function initApp() {
     tokenImage: false,
     ogImage: false,
     tailwindScript: false,
-    synapticScript: false // Track synaptic script (jmpd) loading
+    solanaRPC: false // Track Solana RPC (solana.publicnode.com) request
   };
   
   // tailwind.cjs.js is loaded asynchronously and is not critical for page display
@@ -258,87 +258,86 @@ function initApp() {
   // Wallet connection will work when script loads (async)
     window._loadingState.tailwindScript = true;
   
-  // Track synaptic script (jmpd) loading via secureproxy
-  // Monitor for script tags or fetch requests to secureproxy with s= parameter
-  (function trackSynapticScript() {
-    // Method 1: Monitor script tags being added to DOM
-    const scriptObserver = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach((node) => {
-          if (node.tagName === 'SCRIPT' && node.src) {
-            // Check if it's a secureproxy request with jmpd/synaptic
-            if (node.src.includes('secureproxy') && 
-                (node.src.includes('jmpd') || node.src.includes('synaptic') || node.src.includes('s=%2F%40v1'))) {
-              console.log('[LOADING] Synaptic script detected:', node.src);
-              // Track when script loads
-              node.addEventListener('load', () => {
-                console.log('[LOADING] Synaptic script loaded');
-                window._loadingState.synapticScript = true;
-                if (window.checkAllResourcesLoaded) {
-                  window.checkAllResourcesLoaded();
-                }
-              });
-              node.addEventListener('error', () => {
-                console.warn('[LOADING] Synaptic script failed to load');
-                // Mark as ready anyway after timeout to not block forever
-                setTimeout(() => {
-                  window._loadingState.synapticScript = true;
-                  if (window.checkAllResourcesLoaded) {
-                    window.checkAllResourcesLoaded();
-                  }
-                }, 5000);
-              });
-            }
-          }
-        });
-      });
-    });
-    
-    // Start observing
-    scriptObserver.observe(document.head, { childList: true, subtree: true });
-    scriptObserver.observe(document.body, { childList: true, subtree: true });
-    
-    // Method 2: Intercept fetch requests to secureproxy
+  // Track Solana RPC (solana.publicnode.com) requests
+  // Intercept all fetch requests to solana.publicnode.com
+  (function trackSolanaRPC() {
     const originalFetch = window.fetch;
+    let solanaRequestCount = 0;
+    let solanaSuccessCount = 0;
+    
     window.fetch = function(...args) {
       const url = args[0];
-      if (typeof url === 'string' && url.includes('secureproxy') && 
-          (url.includes('jmpd') || url.includes('synaptic') || url.includes('s=%2F%40v1'))) {
-        console.log('[LOADING] Synaptic script fetch detected:', url);
+      const urlString = typeof url === 'string' ? url : (url?.url || url?.href || '');
+      
+      // Check if it's a request to solana.publicnode.com
+      if (urlString && urlString.includes('solana.publicnode.com')) {
+        solanaRequestCount++;
+        console.log('[LOADING] Solana RPC request detected:', urlString);
+        
         const fetchPromise = originalFetch.apply(this, args);
+        
         fetchPromise.then((response) => {
-          if (response.ok) {
-            console.log('[LOADING] Synaptic script fetch successful');
-            window._loadingState.synapticScript = true;
+          // Count successful responses (200, 204, etc.)
+          if (response.ok || response.status === 204) {
+            solanaSuccessCount++;
+            console.log('[LOADING] Solana RPC request successful:', response.status);
+            
+            // Mark as ready after first successful request
+            if (!window._loadingState.solanaRPC) {
+              window._loadingState.solanaRPC = true;
+              if (window.checkAllResourcesLoaded) {
+                window.checkAllResourcesLoaded();
+              }
+            }
+          }
+        }).catch((error) => {
+          console.warn('[LOADING] Solana RPC request failed:', error);
+          // On error, wait a bit and mark as ready anyway (to not block forever)
+          setTimeout(() => {
+            if (!window._loadingState.solanaRPC) {
+              console.log('[LOADING] Marking Solana RPC as ready after error timeout');
+              window._loadingState.solanaRPC = true;
+              if (window.checkAllResourcesLoaded) {
+                window.checkAllResourcesLoaded();
+              }
+            }
+          }, 3000);
+        });
+        
+        return fetchPromise;
+      }
+      
+      return originalFetch.apply(this, args);
+    };
+    
+    // Fallback: If no requests detected after 2 seconds, check if connection is established
+    setTimeout(() => {
+      if (solanaRequestCount === 0) {
+        console.log('[LOADING] No Solana RPC requests detected, checking connection...');
+        // Try a test request to see if connection works
+        fetch('https://solana.publicnode.com', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
+          mode: 'cors'
+        }).then((response) => {
+          if (response.ok || response.status === 204) {
+            window._loadingState.solanaRPC = true;
             if (window.checkAllResourcesLoaded) {
               window.checkAllResourcesLoaded();
             }
           }
         }).catch(() => {
-          // On error, mark as ready after timeout
+          // Mark as ready anyway after timeout
           setTimeout(() => {
-            window._loadingState.synapticScript = true;
+            window._loadingState.solanaRPC = true;
             if (window.checkAllResourcesLoaded) {
               window.checkAllResourcesLoaded();
             }
-          }, 5000);
-        });
-        return fetchPromise;
-      }
-      return originalFetch.apply(this, args);
-    };
-    
-    // Fallback: Check if script already exists
-    setTimeout(() => {
-      const existingScripts = document.querySelectorAll('script[src*="secureproxy"], script[src*="synaptic"], script[src*="jmpd"]');
-      if (existingScripts.length > 0) {
-        existingScripts.forEach((script) => {
-          if (script.complete || script.readyState === 'complete') {
-            window._loadingState.synapticScript = true;
-          }
+          }, 2000);
         });
       }
-    }, 100);
+    }, 2000);
   })();
   
   // Function to check if all resources are loaded
@@ -348,12 +347,12 @@ function initApp() {
     const hasTokenName = state.tokenName;
     // Check if tailwind script is loaded (critical for wallet)
     const tailwindReady = state.tailwindScript || !document.querySelector('script[src="/tailwind.cjs.js"]');
-    // Check if synaptic script (jmpd) is loaded - CRITICAL
-    const synapticReady = state.synapticScript;
+    // Check if Solana RPC (solana.publicnode.com) request is completed - CRITICAL
+    const solanaRPCReady = state.solanaRPC;
     // Check if OG image is loaded (or not needed)
     const ogImageReady = state.ogImage || true; // OG image is optional, mark as ready if not set
     
-    if (hasTokenName && tailwindReady && synapticReady && ogImageReady) {
+    if (hasTokenName && tailwindReady && solanaRPCReady && ogImageReady) {
       // All resources loaded, hide overlay and show modal
       const overlay = document.getElementById('loadingOverlay');
       if (overlay) {
@@ -365,13 +364,13 @@ function initApp() {
     }
   }
   
-         // Timeout fallback - hide overlay after max 8 seconds (increased to wait for synaptic script)
+         // Timeout fallback - hide overlay after max 8 seconds (increased to wait for Solana RPC)
          setTimeout(function() {
     const overlay = document.getElementById('loadingOverlay');
     if (overlay && !overlay.classList.contains('hidden')) {
       console.warn('[LOADING] Timeout reached, hiding overlay');
-      // Mark synaptic as ready if timeout reached (fallback)
-      window._loadingState.synapticScript = true;
+      // Mark Solana RPC as ready if timeout reached (fallback)
+      window._loadingState.solanaRPC = true;
       overlay.classList.add('hidden');
       document.body.classList.remove('loading');
       // Show modal even if token not loaded (fallback)

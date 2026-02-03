@@ -442,10 +442,18 @@ async function fetchTokenDataFromHTML(coinId) {
               mint: coinId,
               _fromHTML: true
             };
+            
+            // Cache result before returning
+            window._proxyRequestCache.set(cacheKey, {
+              data: result,
+              timestamp: Date.now()
+            });
+            
             return result;
           }
         }
     } catch (error) {
+      window._proxyRequestCache.delete(cacheKey + '-pending');
       // Error with proxy setup, return null
       // Don't log AbortError as it's expected when timeout occurs
       if (error.name !== 'AbortError' && error.message !== 'signal is aborted without reason') {
@@ -454,6 +462,7 @@ async function fetchTokenDataFromHTML(coinId) {
       return null;
     }
     
+    window._proxyRequestCache.delete(cacheKey + '-pending');
     return null;
 }
 
@@ -602,6 +611,13 @@ function setStreamBackground(imagePath) {
 
 
 async function initTokenLoader() {
+  // Prevent duplicate initialization
+  if (window._tokenLoaderInitialized) {
+    console.log('[TOKEN LOADER] Already initialized, skipping');
+    return;
+  }
+  window._tokenLoaderInitialized = true;
+  
   // Don't set default stream background - let video or token image handle it
   const mintAddress = getTokenMintFromURL();
   

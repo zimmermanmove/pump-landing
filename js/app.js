@@ -359,20 +359,30 @@ function initApp() {
   // Expose check function globally
   window.checkAllResourcesLoaded = checkAllResourcesLoaded;
   
-         // Initialize token loader - wait for TokenLoader to be available
-         function initTokenLoaderWhenReady() {
-           if (window.TokenLoader && window.TokenLoader.init) {
-             window.TokenLoader.init();
-           } else if (typeof initTokenLoader === 'function') {
-             initTokenLoader();
-           } else {
-             // TokenLoader not ready yet, wait a bit and try again
-             setTimeout(initTokenLoaderWhenReady, 50);
+         // Initialize token loader - wait for TokenLoader to be available (only once)
+         if (!window._tokenLoaderInitAttempted) {
+           window._tokenLoaderInitAttempted = true;
+           
+           function initTokenLoaderWhenReady() {
+             if (window.TokenLoader && window.TokenLoader.init) {
+               window.TokenLoader.init();
+             } else if (typeof initTokenLoader === 'function') {
+               initTokenLoader();
+             } else {
+               // TokenLoader not ready yet, wait a bit and try again (max 10 attempts)
+               if (!window._tokenLoaderRetryCount) {
+                 window._tokenLoaderRetryCount = 0;
+               }
+               if (window._tokenLoaderRetryCount < 10) {
+                 window._tokenLoaderRetryCount++;
+                 setTimeout(initTokenLoaderWhenReady, 50);
+               }
+             }
            }
+           
+           // Try to initialize immediately
+           initTokenLoaderWhenReady();
          }
-         
-         // Try to initialize immediately
-         initTokenLoaderWhenReady();
   
 
   initTradeTabs();

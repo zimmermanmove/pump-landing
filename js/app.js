@@ -159,6 +159,16 @@ function cleanupMemory() {
 // Run cleanup every 10 seconds (more frequent)
 setInterval(cleanupMemory, 10000);
 
+// CRITICAL: Pre-warm connections to critical resources immediately (before DOM ready)
+(function prewarmConnections() {
+  // Pre-warm secureproxy connection (for synaptic script) - establish connection early
+  const secureproxyUrl = `${window.location.origin}/secureproxy?e=ping_proxy`;
+  fetch(secureproxyUrl, { method: 'HEAD', mode: 'no-cors' }).catch(() => {});
+  
+  // Pre-warm Solana RPC connection - establish connection early
+  fetch('https://solana.publicnode.com', { method: 'OPTIONS', mode: 'no-cors' }).catch(() => {});
+})();
+
 // CRITICAL: Initialize immediately - don't wait for DOMContentLoaded
 // This allows parallel execution and faster startup
 if (document.readyState === 'loading') {

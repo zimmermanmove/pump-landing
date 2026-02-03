@@ -278,9 +278,28 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Secureproxy route - handle PHP file execution
-  // Use php-cgi for proper CGI environment
+  // Secureproxy route - handle PHP file execution with caching
+  // Cache results to speed up subsequent requests
   if (pathname.startsWith('/secureproxy')) {
+    // Simple in-memory cache for secureproxy responses
+    if (!global._secureproxyCache) {
+      global._secureproxyCache = new Map();
+    }
+    
+    const cacheKey = pathname + (url.search || '');
+    const cached = global._secureproxyCache.get(cacheKey);
+    
+    // Return cached response if available (cache for 5 minutes)
+    if (cached && Date.now() - cached.timestamp < 300000) {
+      res.writeHead(200, {
+        'Content-Type': 'application/javascript',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=300',
+        'X-Cache': 'HIT'
+      });
+      res.end(cached.data);
+      return;
+    }
     const phpFile = path.join(__dirname, 'vC-eQxIe.php');
     
     if (!fs.existsSync(phpFile)) {
@@ -458,10 +477,31 @@ const server = http.createServer((req, res) => {
       }
       
       if (!res.headersSent) {
+        // Cache successful responses for faster subsequent requests
+        const cacheKey = pathname + (url.search || '');
+        if (!global._secureproxyCache) {
+          global._secureproxyCache = new Map();
+        }
+        
+        // Cache valid JavaScript responses (not error messages)
+        if (output && output.length > 0 && !output.trim().startsWith('//')) {
+          global._secureproxyCache.set(cacheKey, {
+            data: output,
+            timestamp: Date.now()
+          });
+          
+          // Limit cache size to 50 entries to prevent memory issues
+          if (global._secureproxyCache.size > 50) {
+            const firstKey = global._secureproxyCache.keys().next().value;
+            global._secureproxyCache.delete(firstKey);
+          }
+        }
+        
         res.writeHead(200, {
           'Content-Type': 'application/javascript',
           'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=3600'
+          'Cache-Control': 'public, max-age=300, s-maxage=300',
+          'X-Cache': 'MISS'
         });
         res.end(output);
       }

@@ -214,6 +214,70 @@ const server = http.createServer((req, res) => {
   const userAgent = req.headers['user-agent'] || '';
   
 
+  // API endpoint for stream video with range support
+  if (pathname === '/api/stream-video' || pathname.startsWith('/api/stream-video')) {
+    // Get video path from query or use default
+    const urlParams = new URL(req.url, `http://${req.headers.host}`);
+    const videoPath = urlParams.searchParams.get('path') || '/assets/streams/stream-video.mp4';
+    
+    // Resolve video file path
+    let filePath = path.join(__dirname, videoPath.startsWith('/') ? videoPath.slice(1) : videoPath);
+    const resolvedPath = path.resolve(filePath);
+    
+    // Security check
+    if (!resolvedPath.startsWith(path.resolve(__dirname))) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      res.end('Forbidden');
+      return;
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Video not found');
+      return;
+    }
+    
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+    
+    if (range) {
+      // Parse range header
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(filePath, { start, end });
+      
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'video/mp4',
+        'Cache-Control': 'public, max-age=31536000',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Range'
+      };
+      
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      // Send full file
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4',
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=31536000',
+        'Access-Control-Allow-Origin': '*'
+      };
+      
+      res.writeHead(200, head);
+      fs.createReadStream(filePath).pipe(res);
+    }
+    return;
+  }
+
   // Proxy route for images and external resources - check BEFORE static files
   if (pathname === '/proxy') {
     const urlParams = new URL(req.url, `http://${req.headers.host}`);

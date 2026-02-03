@@ -292,6 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
 
   initLiveChat();
+  initStreamVideo();
 });
 
 
@@ -503,5 +504,93 @@ function initLiveChat() {
     }
   }
   
+  // Start creating messages automatically
+  // Create first message immediately
+  createNewMessage();
+  
+  // Then create new messages every 3-8 seconds
+  const messageInterval = setInterval(() => {
+    createNewMessage();
+  }, Math.random() * 5000 + 3000); // Random interval between 3-8 seconds
+  
+  // Store interval ID for cleanup if needed
+  window.chatMessageInterval = messageInterval;
+}
 
+// Initialize stream video with lazy loading
+function initStreamVideo() {
+  const video = document.getElementById('stream-video');
+  if (!video) return;
+  
+  // Video source via API endpoint
+  // You can pass video path as query parameter: /api/stream-video?path=/assets/streams/stream-video.mp4
+  // Or use default path
+  const videoPath = '/assets/streams/stream-video.mp4'; // Change this to your video path
+  const videoSrc = `/api/stream-video?path=${encodeURIComponent(videoPath)}`;
+  
+  // Use Intersection Observer to load video only when visible
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        // Video is visible, start loading
+        const videoElement = entry.target;
+        if (videoElement.tagName === 'VIDEO' && !videoElement.src) {
+          videoElement.classList.add('loading');
+          videoElement.style.display = 'block';
+          
+          // Set video source
+          const source = videoElement.querySelector('source');
+          if (source) {
+            source.src = videoSrc;
+            videoElement.load(); // Start loading
+            
+            // Show video when loaded
+            videoElement.addEventListener('loadeddata', () => {
+              videoElement.classList.remove('loading');
+              videoElement.classList.add('loaded');
+              // Hide background image when video is ready
+              const videoBg = document.querySelector('.video-bg');
+              if (videoBg) {
+                videoBg.style.opacity = '0';
+                videoBg.style.transition = 'opacity 0.5s ease-out';
+              }
+            }, { once: true });
+            
+            // Handle loading errors
+            videoElement.addEventListener('error', () => {
+              console.warn('Video failed to load, using background image');
+              videoElement.style.display = 'none';
+              videoElement.classList.remove('loading');
+            }, { once: true });
+          }
+        }
+        
+        // Unobserve after loading starts
+        observer.unobserve(videoElement);
+      }
+    });
+  }, {
+    rootMargin: '50px' // Start loading 50px before video is visible
+  });
+  
+  observer.observe(video);
+  
+  // Optional: Load video on play button click
+  const playButton = document.querySelector('.play-button');
+  if (playButton) {
+    playButton.addEventListener('click', () => {
+      if (video.paused) {
+        video.play().catch(err => {
+          console.warn('Autoplay prevented:', err);
+          // Unmute and try again
+          video.muted = false;
+          video.play().catch(() => {
+            console.warn('Video play failed');
+          });
+        });
+      } else {
+        video.pause();
+      }
+    });
+  }
 }
